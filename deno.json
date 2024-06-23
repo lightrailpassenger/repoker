@@ -1,0 +1,9 @@
+{
+    "fmt": {
+        "lineWidth": 80,
+        "indentWidth": 4
+    },
+    "imports": {
+        "cookies": "https://deno.land/std@0.224.0/http/cookie.ts"
+    }
+}
