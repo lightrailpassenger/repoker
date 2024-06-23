@@ -1,6 +1,6 @@
 import { getCookies } from "cookies";
 
-import { clear, flip, vote } from "../kv/mod.js";
+import { clear, createUser, flip, getRoomInfo, vote } from "../kv/mod.js";
 
 const handleCreateUser = async (kv, request) => {
     try {
@@ -32,6 +32,10 @@ const handleCreateConnection = async (socket, request, reponse, event, kv) => {
             "room_token": roomToken,
             "user_token": userToken,
         } = cookies;
+
+        const room = await getRoomInfo(kv, roomToken);
+
+        socket.write(JSON.stringify({ room }));
 
         for await (const state of watch(kv, roomToken)) {
             socket.write(JSON.stringify({

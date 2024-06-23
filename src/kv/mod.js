@@ -3,8 +3,42 @@ import generateToken from "../utils/generateToken.js";
 const MAX_TRY = 10;
 
 const CARD_KEY = "card";
+const ROOM_NAME_KEY = "roomName";
 const ROOM_VOTE_KEY = "roomVote";
 const USER_NAME_KEY = "userNameKey";
+
+const createRoom = async (kv, roomName, cards) => {
+    const roomToken = await generateToken();
+
+    await kv.atomic()
+        .set([roomToken, CARD_KEY], cards)
+        .set([roomToken, ROOM_VOTE_KEY], {
+            vote: {},
+            shown: true,
+        })
+        .set([roomToken, ROOM_NAME_KEY], roomName)
+        .commit();
+};
+
+const getRoomInfo = async (kv, roomToken) => {
+    const [name, cards, votes, mapping] = await kv.getMany([
+        [roomToken, CARD_KEY],
+        [roomToken, ROOM_NAME_KEY],
+        [roomToken, ROOM_VOTE_KEY],
+        [roomToken, USER_NAME_KEY],
+    ]);
+    const state = Object.create(null);
+
+    for (const key in votes) {
+        state[mapping[key]] = votes[key];
+    }
+
+    return {
+        name: name.value,
+        cards: cards.value,
+        state,
+    };
+};
 
 const createUser = async (kv, roomToken, username) => {
     const newToken = await generateToken();
@@ -112,7 +146,7 @@ const watch = (kv, roomToken) => {
             const mappedState = Object.create(null);
 
             for (const key in value) {
-                mappedState[mapping[key]] = value;
+                mappedState[mapping[key]] = value[key];
             }
 
             yield mappedState;
@@ -120,4 +154,4 @@ const watch = (kv, roomToken) => {
     };
 };
 
-export { clear, createUser, flip, getUserMapping, vote, watch };
+export { clear, createRoom, createUser, flip, getUserMapping, vote, watch };
