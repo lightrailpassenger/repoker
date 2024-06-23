@@ -7,17 +7,21 @@ const ROOM_NAME_KEY = "roomName";
 const ROOM_VOTE_KEY = "roomVote";
 const USER_NAME_KEY = "userNameKey";
 
+const EXPIRE_MS = 3 * 60 * 60 * 1000;
+
 const createRoom = async (kv, roomName, cards) => {
     const roomToken = await generateToken();
 
     await kv.atomic()
-        .set([roomToken, CARD_KEY], cards)
+        .set([roomToken, CARD_KEY], cards, { expireIn: EXPIRE_MS })
         .set([roomToken, ROOM_VOTE_KEY], {
             vote: {},
             shown: true,
-        })
-        .set([roomToken, ROOM_NAME_KEY], roomName)
+        }, { expireIn: EXPIRE_MS })
+        .set([roomToken, ROOM_NAME_KEY], roomName, { expireIn: EXPIRE_MS })
         .commit();
+
+    return roomToken;
 };
 
 const getRoomInfo = async (kv, roomToken) => {
@@ -59,7 +63,7 @@ const createUser = async (kv, roomToken, username) => {
             .check(usernameRes)
             .set([roomToken, USER_NAME_KEY], newValue)
             .commit();
-    } while (transaction.ok && count <= MAX_TRY);
+    } while (!transaction.ok && count <= MAX_TRY);
 
     if (transaction.ok) {
         return newToken;

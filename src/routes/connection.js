@@ -1,20 +1,26 @@
-import { getCookies } from "cookies";
+import { getCookies, setCookie } from "cookies";
 
 import { clear, createUser, flip, getRoomInfo, vote } from "../kv/mod.js";
+import { createJSONResponse } from "../utils/createResponse.js";
 
 const handleCreateUser = async (kv, request) => {
     try {
-        const { headers, body } = request;
+        const { headers: requestHeaders, body } = request;
+        const cookies = getCookies(requestHeaders);
+        const {
+            "room_token": roomToken,
+        } = cookies;
         const { username } = body;
+
+        // TODO: Room not found case
         const userToken = await createUser(kv, roomToken, username);
-        const cookies = {
+        const headers = new Headers();
+
+        setCookie(headers, {
             name: "user_token",
             value: userToken,
             httpOnly: true,
-        };
-        const headers = new Headers();
-
-        setCookies(headers, cookies);
+        });
 
         return createJSONResponse({ created: true }, 201, headers);
     } catch (err) {

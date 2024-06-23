@@ -4,18 +4,24 @@ import { createRoomHandler } from "./routes/room.js";
 import { createJSONResponse } from "./utils/createResponse.js";
 
 const port = Deno.env.get("PORT") ?? 8000;
-const kv = Deno.openKv();
+const kv = await Deno.openKv();
 
-const { handleCreateConnection, handleConnection, handleConnectionClose } =
-    createConnection(kv);
+const {
+    handleCreateUser,
+    handleCreateConnection,
+    handleConnection,
+    handleConnectionClose,
+} = createConnection(kv);
 const { handleCreateRoom } = createRoomHandler(kv);
 
 Deno.serve({
     port,
     handler: async (request) => {
-        const { headers, url } = request;
+        const { method: httpMethod, headers, url } = request;
+        const method = httpMethod.toUpperCase();
+        const { pathname } = new URL(url);
 
-        if (url === "/conn") {
+        if (pathname === "/conn") {
             const upgradeHeader = headers.get("Upgrade");
 
             if (upgradeHeader === "websocket") {
@@ -50,11 +56,11 @@ Deno.serve({
                     },
                 );
             }
-        } else if (url.startsWith("/rooms")) {
+        } else if (pathname.startsWith("/rooms")) {
             if (method === "POST") {
                 return await handleCreateRoom(request);
             }
-        } else if (url.startsWith("/users")) {
+        } else if (pathname.startsWith("/users")) {
             if (method === "POST") {
                 return await handleCreateUser(request);
             }

@@ -1,12 +1,12 @@
-import { setCookies } from "cookies";
+import { setCookie } from "cookies";
 
 import { availableCards } from "../constants/card.js";
 import { createRoom } from "../kv/mod.js";
+import { createJSONResponse } from "../utils/createResponse.js";
 
 const handleCreateRoom = async (kv, request) => {
     try {
-        const { body } = request;
-        const { name, cards } = body;
+        const { name, cards } = await request.json();
 
         if (
             typeof name !== "string" ||
@@ -15,22 +15,23 @@ const handleCreateRoom = async (kv, request) => {
         ) {
             return createJSONResponse({
                 err: "BAD_REQUEST",
-            }, 401);
+            }, 404);
         }
 
         const token = await createRoom(kv, name, cards);
-        const cookies = {
+        const cookie = {
             name: "room_token",
             value: token,
             httpOnly: true,
         };
         const headers = new Headers();
 
-        setCookies(headers, cookies);
+        setCookie(headers, cookie);
 
         return createJSONResponse(
             {
                 created: true,
+                token,
             },
             201,
             headers,
@@ -44,7 +45,7 @@ const handleCreateRoom = async (kv, request) => {
     }
 };
 
-export default function (kv) {
+export function createRoomHandler(kv) {
     return {
         handleCreateRoom(request) {
             return handleCreateRoom(kv, request);
