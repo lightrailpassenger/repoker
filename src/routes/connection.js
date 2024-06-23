@@ -6,7 +6,7 @@ const handleCreateUser = async (kv, request) => {
     try {
         const { headers, body } = request;
         const { username } = body;
-        const userToken = createUser(kv, roomToken, username);
+        const userToken = await createUser(kv, roomToken, username);
         const cookies = {
             name: "user_token",
             value: userToken,
@@ -24,13 +24,18 @@ const handleCreateUser = async (kv, request) => {
     }
 };
 
-const handleCreateConnection = async (socket, request, reponse, event, kv) => {
+const handleCreateConnection = async (
+    socket,
+    request,
+    _response,
+    _event,
+    kv,
+) => {
     try {
         const { headers } = request;
-        const cookies = getCookies(request);
+        const cookies = getCookies(headers);
         const {
             "room_token": roomToken,
-            "user_token": userToken,
         } = cookies;
 
         const room = await getRoomInfo(kv, roomToken);
@@ -39,7 +44,7 @@ const handleCreateConnection = async (socket, request, reponse, event, kv) => {
 
         for await (const state of watch(kv, roomToken)) {
             socket.write(JSON.stringify({
-                roomState: status,
+                roomState: state,
             }));
         }
     } catch (err) {
@@ -49,7 +54,7 @@ const handleCreateConnection = async (socket, request, reponse, event, kv) => {
     }
 };
 
-const handleConnection = async (socket, request, response, event, kv) => {
+const handleConnection = async (socket, request, _response, event, kv) => {
     try {
         const { data } = event;
         const { headers } = request;
@@ -58,7 +63,7 @@ const handleConnection = async (socket, request, response, event, kv) => {
             "room_token": roomToken,
             "user_token": userToken,
         } = cookies;
-        const { name, changes } = data;
+        const { changes } = data;
 
         // Changes
         if (Object.prototype.hasOwnProperty.call(changes, "vote")) {
@@ -81,7 +86,7 @@ export function createConnection(kv) {
             return handleCreateUser(kv, request);
         },
         handleCreateConnection(socket, request, response, event) {
-            return handleCreateConnection(socket, request, respnose, event, kv);
+            return handleCreateConnection(socket, request, response, event, kv);
         },
         handleConnection(socket, request, response, event) {
             return handleConnection(socket, request, response, event, kv);

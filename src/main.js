@@ -21,6 +21,15 @@ Deno.serve({
             if (upgradeHeader === "websocket") {
                 const { socket, response } = Deno.upgradeWebSocket(request);
 
+                socket.onopen = (event) => {
+                    handleCreateConnection(
+                        socket,
+                        request,
+                        response,
+                        event,
+                        kv,
+                    );
+                };
                 socket.onmessage = (event) => {
                     handleConnection(socket, request, response, event);
                 };
@@ -43,11 +52,11 @@ Deno.serve({
             }
         } else if (url.startsWith("/rooms")) {
             if (method === "POST") {
-                return handleCreateRoom(request);
+                return await handleCreateRoom(request);
             }
         } else if (url.startsWith("/users")) {
             if (method === "POST") {
-                return handleCreateUser(request);
+                return await handleCreateUser(request);
             }
         }
 

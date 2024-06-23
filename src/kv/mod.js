@@ -154,4 +154,13 @@ const watch = (kv, roomToken) => {
     };
 };
 
-export { clear, createRoom, createUser, flip, getUserMapping, vote, watch };
+export {
+    clear,
+    createRoom,
+    createUser,
+    flip,
+    getRoomInfo,
+    getUserMapping,
+    vote,
+    watch,
+};
