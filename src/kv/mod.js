@@ -139,7 +139,7 @@ const flip = async (kv, roomToken) => {
         const statusRes = await kv.get([roomToken, ROOM_VOTE_KEY]);
         const { value } = statusRes;
         const newValue = {
-            ...status,
+            ...value,
             shown: !value.shown,
         };
 

@@ -17,17 +17,28 @@ const handleCreateUser = async (kv, request) => {
         const {
             "room_token": roomToken,
         } = cookies;
-        const { username } = await request.json();
+        const {
+            roomToken: roomTokenFromBody,
+            username,
+        } = await request.json();
+        const mergedRoomToken = roomToken ?? roomTokenFromBody;
 
         if (typeof username !== "string") {
             return createJSONResponse({ err: "BAD_REQUEST" }, 400);
-        } // TODO: Room not found case
-        const userToken = await createUser(kv, roomToken, username);
+        }
+
+        // TODO: Room not found case
+        const userToken = await createUser(kv, mergedRoomToken, username);
         const headers = new Headers();
 
         setCookie(headers, {
             name: "user_token",
             value: userToken,
+            httpOnly: true,
+        });
+        setCookie(headers, {
+            name: "room_token",
+            value: mergedRoomToken,
             httpOnly: true,
         });
 
