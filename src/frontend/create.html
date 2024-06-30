@@ -1,0 +1,90 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <script src="https://code.jquery.com/jquery-3.7.1.slim.min.js" integrity="sha256-kmHvs0B+OpCW5GVHUNjv9rOmY0IvSIRcf7zGUDTDQM8=" crossorigin="anonymous"></script>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+        <script type="module">
+            import { availableCards } from "/constants/card.js";
+
+            const cardSelectionStatus = Object.fromEntries(
+                Array.from(
+                    availableCards,
+                    (card) => ([card, false])
+                )
+            );
+            const checkCanSubmit = () => {
+                return (
+                    Object.values(cardSelectionStatus).some(Boolean) &&
+                    $("#name").val().length > 0
+                );
+            };
+            const updateDisabledState = () => {
+                const canSubmit = checkCanSubmit();
+
+                if (canSubmit) {
+                    $("#create").removeClass("disabled");
+                } else {
+                    $("#create").addClass("disabled");
+                }
+            };
+            const selectCard = (event) => {
+                const { id } = event.target;
+                const cardId = id.substring(5);
+                cardSelectionStatus[cardId] = !cardSelectionStatus[cardId];
+
+                const buttonId = $.escapeSelector(`#card-${cardId}`);
+                if (cardSelectionStatus[cardId]) {
+                    $(buttonId).addClass("btn-active");
+                } else {
+                    $(buttonId).removeClass("btn-active");
+                }
+                updateDisabledState();
+            };
+            $("#name").on("input", updateDisabledState);
+            for (const card of availableCards) {
+                const button = $("<button/>").text(card).on("click", selectCard)
+                    .attr("class", "btn w-auto ms-1 me-1")
+                    .attr("data-bs-toggle", "button")
+                    .attr("id", `card-${card}`);
+                $("#cards").append(button);
+            }
+            const handleCreateRoom = async () => {
+                const res = await fetch("/rooms", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        name: $("#name").val(),
+                        cards: Object.keys(cardSelectionStatus).filter(Boolean),
+                    }),
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                });
+                if (res.ok) {
+                    const { token } = await res.json();
+                    window.location = `/playground?id=${encodeURIComponent(token)}`;
+                }
+            };
+            $("#create").on("click", handleCreateRoom);
+        </script>
+    </head>
+    <body class="ps-1 pe-1">
+        <div class="container d-flex flex-column align-item-center justify-content-center vh-100">
+            <div class="row">
+                <h1 class="ps-0 offset-md-3 text-start">Create</h1>
+            </div>
+            <div class="row my-1">
+                <input class="col-md-6 offset-md-3 col-sm-12" id="name" type="text" placeholder="Name">
+            </div>
+            <div class="row my-1">
+                <div class="offset-md-3 col-md-6" id="cards"></div>
+            </div>
+            <div class="row my-1">
+                <div class="text-end col-md-6 offset-md-3 col-sm-12 pe-0">
+                    <a href="/welcome" class="w-auto ms-0 btn btn-outline-secondary">Back</a>
+                    <button class="btn btn-outline-primary disabled" id="create">Create</button>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

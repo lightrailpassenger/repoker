@@ -1,4 +1,5 @@
 import { createConnection } from "./routes/connection.js";
+import { handleServeFile } from "./routes/frontend.js";
 import { createRoomHandler } from "./routes/room.js";
 
 import { createJSONResponse } from "./utils/createResponse.js";
@@ -19,7 +20,8 @@ Deno.serve({
     handler: async (request) => {
         const { method: httpMethod, headers, url } = request;
         const method = httpMethod.toUpperCase();
-        const { pathname } = new URL(url);
+        const urlObject = new URL(url);
+        const { pathname } = urlObject;
 
         if (pathname === "/conn") {
             const upgradeHeader = headers.get("Upgrade");
@@ -64,6 +66,15 @@ Deno.serve({
             if (method === "POST") {
                 return await handleCreateUser(request);
             }
+        } else if (method === "GET" && pathname === "/" || pathname === "") {
+            return new Response(undefined, {
+                status: 308,
+                headers: {
+                    "Location": "/welcome",
+                },
+            });
+        } else if (method === "GET") {
+            return await handleServeFile(urlObject);
         }
 
         return createJSONResponse({
