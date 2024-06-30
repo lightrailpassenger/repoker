@@ -54,7 +54,7 @@
                     method: "POST",
                     body: JSON.stringify({
                         name: $("#name").val(),
-                        cards: Object.keys(cardSelectionStatus).filter(Boolean),
+                        cards: Object.entries(cardSelectionStatus).filter(([, value]) => value).map((entry) => entry[0]),
                     }),
                     headers: {
                         "Content-Type": "application/json",

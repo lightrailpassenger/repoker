@@ -1,1 +1,110 @@
-<h1>Playground</h1>
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <script src="https://code.jquery.com/jquery-3.7.1.slim.min.js" integrity="sha256-kmHvs0B+OpCW5GVHUNjv9rOmY0IvSIRcf7zGUDTDQM8=" crossorigin="anonymous"></script>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+        <script type="module">
+            const url = new URL(window.location);
+            const {
+                host,
+                pathname,
+                protocol,
+                searchParams,
+            } = url;
+            const token = searchParams.get("id");
+            const dialog = $("#join-dialog")[0];
+
+            if (token) {
+                $("#join-form").on("submit", async (event) => {
+                    event.preventDefault();
+                    const username = $("#join-name").val();
+                    $("#join-button").addClass("disabled");
+                    const res = await fetch("/users", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            username,
+                        }),
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                    });
+                    if (res.ok) {
+                        dialog.close();
+                    }
+                });
+                dialog.showModal();
+                await new Promise((res) => {
+                    dialog.onclose = res;
+                });
+                window.roomToken = token;
+                window.history.pushState({ token }, "", "/playground");
+            }
+
+            const createState = (vote, shown) => {
+                const table = $('<table/>').attr('class', 'table table-striped');
+                const head = $('<thead/>').append(
+                    $('<tr/>').append($('<td/>').text('Name'), $('<td/>').text('Vote'))
+                );
+                table.append(head);
+                const body = $('<tbody/>');
+                for (const [name, value] of Object.entries(vote)) {
+                    const row = $('<tr/>');
+                    row.append($('<td/>').text(name));
+                    row.append($('<td/>').text(shown ? value : "Invisible"));
+                    body.append(row);
+                }
+
+                return table.append(body);
+            };
+            const socket = new WebSocket(`${protocol.replace("http", "ws")}//${host}/conn`);
+            socket.onmessage = (event) => {
+                const { data } = event;
+
+                if (data === "not_found") {
+                    window.location = "/welcome";
+                }
+
+                const { init, ...other } = JSON.parse(data);
+
+                if (init) {
+                    const { cards, name, vote, shown } = other.room;
+                    $('h1').text(name);
+                    for (const card of cards) {
+                        const button = $('<button/>').attr('class', 'btn btn-outline-warning w-auto ms-1 me-1')
+                            .text(card)
+                            .on('click', () => {
+                                socket.send(JSON.stringify({ changes: { vote: card } }));
+                            });
+                        $('#cards').append(button);
+                    }
+                    $('#state > table').replaceWith(createState(vote, shown));
+                } else {
+                    const { vote, shown } = other.roomState;
+                    $('#state > table').replaceWith(createState(vote, shown));
+                }
+            }
+        </script>
+    </head>
+    <body>
+        <div class="container">
+            <dialog id="join-dialog" class="border border-primary">
+                <form id="join-form" method="dialog">
+                    <input type="text" id="join-name" placeholder="Your name">
+                    <button type="submit" class="btn btn-primary" id="join-button">Join</button>
+                </form>
+            </dialog>
+            <h1></h1>
+            <div id="cards" class="row d-flex justify-content-center"></div>
+            <div class="row">
+                <div id="state" class="offset-md-4 col-md-4 col-sm-12">
+                    <table></table>
+                </div>
+            </div>
+            <div class="row d-flex justify-content-center">
+                <button class="btn btn-warning w-auto me-1 ms-1" id="flip">Flip</button>
+                <button class="btn btn-secondary w-auto me-1 ms-1" id="share">Share</button>
+            </div>
+        </div>
+    </body>
+<html>

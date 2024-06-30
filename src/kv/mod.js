@@ -19,28 +19,41 @@ const createRoom = async (kv, roomName, cards) => {
             shown: true,
         }, { expireIn: EXPIRE_MS })
         .set([roomToken, ROOM_NAME_KEY], roomName, { expireIn: EXPIRE_MS })
+        .set([roomToken, USER_NAME_KEY], {}, { expireIn: EXPIRE_MS })
         .commit();
 
     return roomToken;
 };
 
 const getRoomInfo = async (kv, roomToken) => {
-    const [name, cards, votes, mapping] = await kv.getMany([
+    const [
+        { value: cards },
+        { value: name },
+        { value: roomVotes },
+        { value: mapping },
+    ] = await kv.getMany([
         [roomToken, CARD_KEY],
         [roomToken, ROOM_NAME_KEY],
         [roomToken, ROOM_VOTE_KEY],
         [roomToken, USER_NAME_KEY],
     ]);
-    const state = Object.create(null);
 
-    for (const key in votes) {
-        state[mapping[key]] = votes[key];
+    if (!cards || !name || !roomVotes || !mapping) {
+        return null;
+    }
+
+    const state = Object.create(null);
+    const { vote, shown } = roomVotes;
+
+    for (const key in mapping) {
+        state[mapping[key]] = vote[key] ?? null;
     }
 
     return {
-        name: name.value,
-        cards: cards.value,
-        state,
+        name: name,
+        cards: cards,
+        vote: state,
+        shown,
     };
 };
 
@@ -79,7 +92,7 @@ const getUserMapping = async (kv, roomToken) => {
 };
 
 const vote = async (kv, roomToken, userToken, vote) => {
-    const availableCards = await kv.get([roomToken, CARD_KEY]);
+    const { value: availableCards } = await kv.get([roomToken, CARD_KEY]);
 
     if (!availableCards.includes(vote)) {
         throw new Error("Invalid vote");
@@ -142,20 +155,26 @@ const flip = async (kv, roomToken) => {
     }
 };
 
-const watch = (kv, roomToken) => {
-    return async function* () {
-        for await (const change of kv.watch([[roomToken, ROOM_VOTE_KEY]])) {
-            const [{ value }] = change;
-            const mapping = await getUserMapping(kv, roomToken);
-            const mappedState = Object.create(null);
+const watch = async function* (kv, roomToken) {
+    for await (
+        const change of kv.watch([
+            [roomToken, ROOM_VOTE_KEY],
+            [roomToken, USER_NAME_KEY],
+        ])
+    ) {
+        const [{ value: { vote: roomVote, shown } }, { value: mapping }] =
+            change;
+        const mappedState = Object.create(null);
 
-            for (const key in value) {
-                mappedState[mapping[key]] = value[key];
-            }
-
-            yield mappedState;
+        for (const key in mapping) {
+            mappedState[mapping[key]] = roomVote[key] ?? null;
         }
-    };
+
+        yield {
+            vote: mappedState,
+            shown,
+        };
+    }
 };
 
 export {

@@ -1,18 +1,27 @@
 import { getCookies, setCookie } from "cookies";
 
-import { clear, createUser, flip, getRoomInfo, vote } from "../kv/mod.js";
+import {
+    clear,
+    createUser,
+    flip,
+    getRoomInfo,
+    vote,
+    watch,
+} from "../kv/mod.js";
 import { createJSONResponse } from "../utils/createResponse.js";
 
 const handleCreateUser = async (kv, request) => {
     try {
-        const { headers: requestHeaders, body } = request;
+        const { headers: requestHeaders } = request;
         const cookies = getCookies(requestHeaders);
         const {
             "room_token": roomToken,
         } = cookies;
-        const { username } = body;
+        const { username } = await request.json();
 
-        // TODO: Room not found case
+        if (typeof username !== "string") {
+            return createJSONResponse({ err: "BAD_REQUEST" }, 400);
+        } // TODO: Room not found case
         const userToken = await createUser(kv, roomToken, username);
         const headers = new Headers();
 
@@ -46,17 +55,25 @@ const handleCreateConnection = async (
 
         const room = await getRoomInfo(kv, roomToken);
 
-        socket.write(JSON.stringify({ room }));
+        if (room) {
+            socket.send(JSON.stringify({ init: true, room }));
+        } else {
+            socket.send("not_found");
+        }
 
         for await (const state of watch(kv, roomToken)) {
-            socket.write(JSON.stringify({
+            socket.send(JSON.stringify({
                 roomState: state,
             }));
         }
     } catch (err) {
         console.error(err);
-        socket.send("error");
-        socket.close();
+        try {
+            socket.send("error");
+            socket.close();
+        } catch (err2) {
+            console.error(err2);
+        }
     }
 };
 
@@ -69,7 +86,7 @@ const handleConnection = async (socket, request, _response, event, kv) => {
             "room_token": roomToken,
             "user_token": userToken,
         } = cookies;
-        const { changes } = data;
+        const { changes } = JSON.parse(data);
 
         // Changes
         if (Object.prototype.hasOwnProperty.call(changes, "vote")) {
@@ -97,8 +114,8 @@ export function createConnection(kv) {
         handleConnection(socket, request, response, event) {
             return handleConnection(socket, request, response, event, kv);
         },
-        handleConnectionClose(socket, request, response, event) {
-            return handleConnectionClose(socket, request, response, event, kv);
+        handleConnectionClose() {
+            return () => {}; // TODO
         },
     };
 }

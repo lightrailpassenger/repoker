@@ -1,3 +1,5 @@
+import { deleteCookie } from "cookies";
+
 import { createJSONResponse } from "../utils/createResponse.js";
 
 const routeToFileMap = new Map([
@@ -15,12 +17,15 @@ const handleServeFile = async (url) => {
             ? "text/html; charset=utf-8"
             : "text/javascript";
         const { readable } = await Deno.open(`src/${file}`, { read: true });
+        const headers = new Headers();
+        headers.append("Content-Type", contentType);
 
-        return new Response(readable, {
-            headers: {
-                "Content-Type": contentType,
-            },
-        });
+        if (pathname === "/create") {
+            deleteCookie(headers, "room_token");
+            deleteCookie(headers, "user_token");
+        }
+
+        return new Response(readable, { headers });
     } catch (err) {
         console.error(err);
 
