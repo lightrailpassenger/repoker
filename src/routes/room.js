@@ -4,12 +4,14 @@ import { availableCards } from "../constants/card.js";
 import { createRoom, getRoomInfo } from "../kv/mod.js";
 import { createJSONResponse } from "../utils/createResponse.js";
 
+const MAX_ROOM_NAME_LENGTH = 100;
 const handleCreateRoom = async (kv, request) => {
     try {
         const { name, cards } = await request.json();
 
         if (
             typeof name !== "string" ||
+            name.length > MAX_ROOM_NAME_LENGTH ||
             !Array.isArray(cards) ||
             cards.some((card) => (!availableCards.has(card)))
         ) {

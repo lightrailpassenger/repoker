@@ -1,4 +1,6 @@
+import { errorCode } from "../constants/error.js";
 import generateToken from "../utils/generateToken.js";
+import JSONResponseError from "../utils/JSONResponseError.js";
 
 const MAX_TRY = 10;
 
@@ -66,6 +68,19 @@ const createUser = async (kv, roomToken, username) => {
 
     do {
         const { value } = usernameRes;
+
+        if (!value) {
+            throw new JSONResponseError(
+                "Room does not exist",
+                errorCode.ROOM_EXPIRED,
+            );
+        } else if (Object.values(value).includes(username)) {
+            throw new JSONResponseError(
+                "Name already used",
+                errorCode.NAME_ALREADY_USED,
+            );
+        }
+
         const newValue = {
             ...value,
             [newToken]: username,

@@ -7,6 +7,7 @@ const routeToFileMap = new Map([
     ["/create", "frontend/create.html"],
     ["/playground", "frontend/room.html"],
     ["/constants/card.js", "constants/card.js"],
+    ["/constants/error.js", "constants/error.js"],
 ]);
 
 const handleServeFile = async (url) => {

@@ -9,6 +9,7 @@ import {
     watch,
 } from "../kv/mod.js";
 import { createJSONResponse } from "../utils/createResponse.js";
+import JSONResponseError from "../utils/JSONResponseError.js";
 
 const handleCreateUser = async (kv, request) => {
     try {
@@ -27,7 +28,6 @@ const handleCreateUser = async (kv, request) => {
             return createJSONResponse({ err: "BAD_REQUEST" }, 400);
         }
 
-        // TODO: Room not found case
         const userToken = await createUser(kv, mergedRoomToken, username);
         const headers = new Headers();
 
@@ -44,6 +44,12 @@ const handleCreateUser = async (kv, request) => {
 
         return createJSONResponse({ created: true }, 201, headers);
     } catch (err) {
+        if (err instanceof JSONResponseError) {
+            const { value, status } = err.code;
+
+            return createJSONResponse({ code: value }, status);
+        }
+
         console.error(err);
 
         return createJSONResponse({ err: "INTERNAL_SERVER_ERROR" }, 500);
