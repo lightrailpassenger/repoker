@@ -16,7 +16,7 @@ const createRoom = async (kv, roomName, cards) => {
         .set([roomToken, CARD_KEY], cards, { expireIn: EXPIRE_MS })
         .set([roomToken, ROOM_VOTE_KEY], {
             vote: {},
-            shown: true,
+            shown: false,
         }, { expireIn: EXPIRE_MS })
         .set([roomToken, ROOM_NAME_KEY], roomName, { expireIn: EXPIRE_MS })
         .set([roomToken, USER_NAME_KEY], {}, { expireIn: EXPIRE_MS })
@@ -127,7 +127,7 @@ const vote = async (kv, roomToken, userToken, vote) => {
 const clear = async (kv, roomToken) => {
     await kv.set([roomToken, ROOM_VOTE_KEY], {
         vote: {},
-        shown: true,
+        shown: false,
     });
 };
 
