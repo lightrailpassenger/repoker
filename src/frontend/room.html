@@ -16,6 +16,12 @@
             const dialog = $("#join-dialog")[0];
 
             if (token) {
+                const { ok } = await fetch(`/rooms/url?token=${encodeURIComponent(token)}`, {
+                    method: "HEAD",
+                });
+                if (!ok) {
+                    window.location = "/";
+                }
                 $("#join-form").on("submit", async (event) => {
                     event.preventDefault();
                     const username = $("#join-name").val();

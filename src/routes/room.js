@@ -47,16 +47,18 @@ const handleCreateRoom = async (kv, request) => {
 
 const handleShareRoom = async (kv, request) => {
     try {
-        const { headers } = request;
+        const { headers, url } = request;
         const { "room_token": roomToken } = getCookies(headers);
+        const { searchParams } = new URL(url);
+        const mergedRoomToken = roomToken ?? searchParams.get("token");
 
-        if (!roomToken) {
+        if (!mergedRoomToken) {
             return createJSONResponse({
                 err: "BAD_REQUEST",
             }, 400);
         }
 
-        const roomInfo = await getRoomInfo(kv, roomToken);
+        const roomInfo = await getRoomInfo(kv, mergedRoomToken);
 
         if (!roomInfo) {
             return createJSONResponse({
@@ -65,7 +67,7 @@ const handleShareRoom = async (kv, request) => {
         }
 
         return createJSONResponse({
-            url: `/playground?id=${encodeURIComponent(roomToken)}`,
+            url: `/playground?id=${encodeURIComponent(mergedRoomToken)}`,
         }, 200);
     } catch (err) {
         console.error(err);
