@@ -172,13 +172,16 @@ const flip = async (kv, roomToken) => {
 
 const watch = async function* (kv, roomToken) {
     for await (
-        const change of kv.watch([
+        const _change of kv.watch([
             [roomToken, ROOM_VOTE_KEY],
             [roomToken, USER_NAME_KEY],
         ])
     ) {
         const [{ value: { vote: roomVote, shown } }, { value: mapping }] =
-            change;
+            await kv.getMany([
+                [roomToken, ROOM_VOTE_KEY],
+                [roomToken, USER_NAME_KEY],
+            ]);
         const mappedState = Object.create(null);
 
         for (const key in mapping) {

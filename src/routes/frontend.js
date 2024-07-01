@@ -1,4 +1,4 @@
-import { deleteCookie } from "cookies";
+import { getCookies, deleteCookie } from "cookies";
 
 import { createJSONResponse } from "../utils/createResponse.js";
 
@@ -10,9 +10,9 @@ const routeToFileMap = new Map([
     ["/constants/error.js", "constants/error.js"],
 ]);
 
-const handleServeFile = async (url) => {
+const handleServeFile = async (url, requestHeaders) => {
     try {
-        const { pathname } = url;
+        const { pathname, searchParams } = url;
         const file = routeToFileMap.get(pathname) ?? "frontend/not_found.html";
         const contentType = file.endsWith(".html")
             ? "text/html; charset=utf-8"
@@ -21,7 +21,16 @@ const handleServeFile = async (url) => {
         const headers = new Headers();
         headers.append("Content-Type", contentType);
 
-        if (pathname === "/create") {
+        if (pathname === "/playground" && searchParams.has("id")) {
+            const {
+                "room_token": roomToken,
+            } = getCookies(requestHeaders);
+
+            if (searchParams.get("id") !== roomToken) {
+                deleteCookie(headers, "room_token");
+                deleteCookie(headers, "user_token");
+            }
+        } else if (pathname === "/create") {
             deleteCookie(headers, "room_token");
             deleteCookie(headers, "user_token");
         }

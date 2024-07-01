@@ -79,7 +79,7 @@ Deno.serve({
                 },
             });
         } else if (method === "GET") {
-            return await handleServeFile(urlObject);
+            return await handleServeFile(urlObject, headers);
         }
 
         return createJSONResponse({
