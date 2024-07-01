@@ -13,7 +13,7 @@ const {
     handleConnection,
     handleConnectionClose,
 } = createConnection(kv);
-const { handleCreateRoom } = createRoomHandler(kv);
+const { handleCreateRoom, handleShareRoom } = createRoomHandler(kv);
 
 Deno.serve({
     port,
@@ -61,6 +61,11 @@ Deno.serve({
         } else if (pathname.startsWith("/rooms")) {
             if (method === "POST") {
                 return await handleCreateRoom(request);
+            } else if (
+                pathname === "/rooms/url" &&
+                (method === "GET" || method === "HEAD")
+            ) {
+                return await handleShareRoom(request);
             }
         } else if (pathname.startsWith("/users")) {
             if (method === "POST") {

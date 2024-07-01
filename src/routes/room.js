@@ -1,7 +1,7 @@
-import { setCookie } from "cookies";
+import { getCookies, setCookie } from "cookies";
 
 import { availableCards } from "../constants/card.js";
-import { createRoom } from "../kv/mod.js";
+import { createRoom, getRoomInfo } from "../kv/mod.js";
 import { createJSONResponse } from "../utils/createResponse.js";
 
 const handleCreateRoom = async (kv, request) => {
@@ -45,10 +45,44 @@ const handleCreateRoom = async (kv, request) => {
     }
 };
 
+const handleShareRoom = async (kv, request) => {
+    try {
+        const { headers } = request;
+        const { "room_token": roomToken } = getCookies(headers);
+
+        if (!roomToken) {
+            return createJSONResponse({
+                err: "BAD_REQUEST",
+            }, 400);
+        }
+
+        const roomInfo = await getRoomInfo(kv, roomToken);
+
+        if (!roomInfo) {
+            return createJSONResponse({
+                err: "NOT_FOUND",
+            }, 404);
+        }
+
+        return createJSONResponse({
+            url: `/playground?id=${encodeURIComponent(roomToken)}`,
+        }, 200);
+    } catch (err) {
+        console.error(err);
+
+        return createJSONResponse({
+            err: "INTERNAL_SERVER_ERROR",
+        }, 500);
+    }
+};
+
 export function createRoomHandler(kv) {
     return {
         handleCreateRoom(request) {
             return handleCreateRoom(kv, request);
+        },
+        handleShareRoom(request) {
+            return handleShareRoom(kv, request);
         },
     };
 }

@@ -90,7 +90,34 @@
             };
             $('#flip').on('click', () => {
                 socket.send(JSON.stringify({ changes: { flip: true }}));
-            })
+            });
+            let shareURL;
+            let lastTimeout;
+            $('#share').on('click', async () => {
+                if (typeof shareURL !== 'string') {
+                    if (shareURL) {
+                        await shareURL;
+                    } else {
+                        const fetchPromise = (async () => {
+                            const res = await fetch("/rooms/url", {
+                                method: "GET",
+                            });
+                            const result = await res.json();
+                            return result.url;
+                        })();
+                        shareURL = fetchPromise;
+                        shareURL = await fetchPromise;
+                    }
+                }
+
+                const actualURL = new URL(shareURL, url.origin);
+                await window.navigator.clipboard.writeText(actualURL);
+                $('#share').text('Copied!');
+                clearTimeout(lastTimeout);
+                lastTimeout = setTimeout(() => {
+                    $('#share').text('Share');
+                }, 2000);
+            });
         </script>
     </head>
     <body>
