@@ -43,19 +43,19 @@
             }
 
             const createState = (vote, shown) => {
-                const table = $('<table/>').attr('class', 'table table-striped');
-                const head = $('<thead/>').append(
-                    $('<tr/>').append(
-                        $('<td/>').attr('class', 'col-md-3 col-sm-6').text('Name'),
-                        $('<td/>').attr('class', 'col-md-3 col-sm-6').text('Vote'),
+                const table = $("<table/>").attr("class", "table table-striped");
+                const head = $("<thead/>").append(
+                    $("<tr/>").append(
+                        $("<td/>").attr("class", "col-md-3 col-sm-6").text("Name"),
+                        $("<td/>").attr("class", "col-md-3 col-sm-6").text("Vote"),
                     )
                 );
                 table.append(head);
-                const body = $('<tbody/>');
+                const body = $("<tbody/>");
                 for (const [name, value] of Object.entries(vote)) {
-                    const row = $('<tr/>');
-                    row.append($('<td/>').attr('class', 'col-md-3 col-sm-6').text(name));
-                    row.append($('<td/>').attr('class', 'col-md-3 col-sm-6').text(shown || !value ? value : "Invisible"));
+                    const row = $("<tr/>");
+                    row.append($("<td/>").attr("class", "col-md-3 col-sm-6").text(name));
+                    row.append($("<td/>").attr("class", "col-md-3 col-sm-6").text(shown || !value ? value : "Invisible"));
                     body.append(row);
                 }
 
@@ -73,28 +73,28 @@
 
                 if (init) {
                     const { cards, name, vote, shown } = other.room;
-                    $('h1').text(name);
+                    $("h1").text(name);
                     for (const card of cards) {
-                        const button = $('<button/>').attr('class', 'btn btn-outline-warning w-auto ms-1 me-1')
+                        const button = $("<button/>").attr("class", "btn btn-outline-warning w-auto ms-1 me-1")
                             .text(card)
-                            .on('click', () => {
+                            .on("click", () => {
                                 socket.send(JSON.stringify({ changes: { vote: card } }));
                             });
-                        $('#cards').append(button);
+                        $("#cards").append(button);
                     }
-                    $('#state > table').replaceWith(createState(vote, shown));
+                    $("#state > table").replaceWith(createState(vote, shown));
                 } else {
                     const { vote, shown } = other.roomState;
-                    $('#state > table').replaceWith(createState(vote, shown));
+                    $("#state > table").replaceWith(createState(vote, shown));
                 }
             };
-            $('#flip').on('click', () => {
+            $("#flip").on("click", () => {
                 socket.send(JSON.stringify({ changes: { flip: true }}));
             });
             let shareURL;
             let lastTimeout;
-            $('#share').on('click', async () => {
-                if (typeof shareURL !== 'string') {
+            $("#share").on("click", async () => {
+                if (typeof shareURL !== "string") {
                     if (shareURL) {
                         await shareURL;
                     } else {
@@ -112,10 +112,10 @@
 
                 const actualURL = new URL(shareURL, url.origin);
                 await window.navigator.clipboard.writeText(actualURL);
-                $('#share').text('Copied!');
+                $("#share").text("Copied!");
                 clearTimeout(lastTimeout);
                 lastTimeout = setTimeout(() => {
-                    $('#share').text('Share');
+                    $("#share").text("Share");
                 }, 2000);
             });
             $("#clear").on("click", () => {
@@ -132,9 +132,9 @@
     <body>
         <div class="container">
             <dialog id="join-dialog" class="border border-primary">
-                <form id="join-form" method="dialog">
+                <form id="join-form" method="dialog" class="d-flex align-items-baseline">
                     <input type="text" id="join-name" placeholder="Your name">
-                    <button type="submit" class="btn btn-primary" id="join-button">Join</button>
+                    <button type="submit" class="btn btn-primary ms-1" id="join-button">Join</button>
                 </form>
             </dialog>
             <dialog id="clear-dialog" class="border border-danger">
