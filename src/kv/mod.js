@@ -10,6 +10,7 @@ const ROOM_VOTE_KEY = "roomVote";
 const USER_NAME_KEY = "userNameKey";
 
 const EXPIRE_MS = 3 * 60 * 60 * 1000;
+const MAX_USERS_COUNT = 100;
 
 const createRoom = async (kv, roomName, cards) => {
     const roomToken = await generateToken();
@@ -73,6 +74,11 @@ const createUser = async (kv, roomToken, username) => {
             throw new JSONResponseError(
                 "Room does not exist",
                 errorCode.ROOM_EXPIRED,
+            );
+        } else if (Object.keys(value).length >= MAX_USERS_COUNT) {
+            throw new JSONResponseError(
+                "Too many users",
+                errorCode.TOO_MANY_USER,
             );
         } else if (Object.values(value).includes(username)) {
             throw new JSONResponseError(

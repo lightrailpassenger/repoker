@@ -9,6 +9,11 @@ const errorCode = {
         status: 404,
         message: "Room expired",
     },
+    TOO_MANY_USER: {
+        value: 1003,
+        status: 403,
+        message: "Too many users in the room",
+    },
 };
 
 export { errorCode };
