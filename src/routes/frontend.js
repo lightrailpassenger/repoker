@@ -1,5 +1,6 @@
 import { deleteCookie, getCookies } from "cookies";
 
+import { getUserMapping } from "../kv/mod.js";
 import { createJSONResponse } from "../utils/createResponse.js";
 import rewriteHTML from "../utils/rewriteHTML.js";
 
@@ -20,7 +21,7 @@ const rewritePaths = new Set([
     "frontend/create.html",
 ]);
 
-const handleServeFile = async (url, requestHeaders) => {
+const handleServeFile = async (kv, url, requestHeaders) => {
     try {
         const { pathname, searchParams } = url;
         const file = routeToFileMap.get(pathname) ?? "frontend/not_found.html";
@@ -33,9 +34,24 @@ const handleServeFile = async (url, requestHeaders) => {
         if (pathname === "/playground" && searchParams.has("id")) {
             const {
                 "room_token": roomToken,
+                "user_token": userToken,
             } = getCookies(requestHeaders);
 
-            if (searchParams.get("id") !== roomToken) {
+            if (searchParams.get("id") === roomToken) {
+                const userMapping = await getUserMapping(kv, roomToken);
+
+                if (
+                    userToken &&
+                    Object.prototype.hasOwnProperty.call(userMapping, userToken)
+                ) {
+                    return new Response(undefined, {
+                        headers: {
+                            "Location": "/playground",
+                        },
+                        status: 303,
+                    });
+                }
+
                 deleteCookie(headers, "room_token");
                 deleteCookie(headers, "user_token");
             }
