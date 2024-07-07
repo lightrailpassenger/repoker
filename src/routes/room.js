@@ -5,19 +5,28 @@ import { createRoom, getRoomInfo } from "../kv/mod.js";
 import { createJSONResponse } from "../utils/createResponse.js";
 
 const MAX_ROOM_NAME_LENGTH = 100;
-const handleCreateRoom = async (kv, request) => {
+const handleCreateRoom = async (kv, captchaVerifier, request) => {
     try {
-        const { name, cards } = await request.json();
+        const { name, cards, captchaToken } = await request.json();
 
         if (
             typeof name !== "string" ||
             name.length > MAX_ROOM_NAME_LENGTH ||
             !Array.isArray(cards) ||
-            cards.some((card) => (!availableCards.has(card)))
+            cards.some((card) => (!availableCards.has(card))) ||
+            typeof captchaToken !== "string"
         ) {
             return createJSONResponse({
                 err: "BAD_REQUEST",
-            }, 404);
+            }, 401);
+        }
+
+        const isValid = await captchaVerifier.verify(captchaToken);
+
+        if (!isValid) {
+            return createJSONResponse({
+                err: "FORBIDDEN",
+            }, 403);
         }
 
         const token = await createRoom(kv, name, cards);
@@ -80,10 +89,10 @@ const handleShareRoom = async (kv, request) => {
     }
 };
 
-export function createRoomHandler(kv) {
+export function createRoomHandler(kv, captchaVerifier) {
     return {
         handleCreateRoom(request) {
-            return handleCreateRoom(kv, request);
+            return handleCreateRoom(kv, captchaVerifier, request);
         },
         handleShareRoom(request) {
             return handleShareRoom(kv, request);

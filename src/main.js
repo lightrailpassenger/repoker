@@ -1,3 +1,5 @@
+import CaptchaVerifier from "./captcha/Verifier.js";
+
 import { createConnection } from "./routes/connection.js";
 import { handleServeFile } from "./routes/frontend.js";
 import { createRoomHandler } from "./routes/room.js";
@@ -6,6 +8,7 @@ import { createJSONResponse } from "./utils/createResponse.js";
 
 const port = Deno.env.get("PORT") ?? 8000;
 const kv = await Deno.openKv();
+const captchaVerifier = new CaptchaVerifier();
 
 const {
     handleCreateUser,
@@ -13,7 +16,10 @@ const {
     handleConnection,
     handleConnectionClose,
 } = createConnection(kv);
-const { handleCreateRoom, handleShareRoom } = createRoomHandler(kv);
+const { handleCreateRoom, handleShareRoom } = createRoomHandler(
+    kv,
+    captchaVerifier,
+);
 
 Deno.serve({
     port,
