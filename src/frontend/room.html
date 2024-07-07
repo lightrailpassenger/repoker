@@ -112,30 +112,39 @@
             });
             let shareURL;
             let lastTimeout;
-            $("#share").on("click", async () => {
+            $("#share").on("click", () => {
                 if (typeof shareURL !== "string") {
-                    if (shareURL) {
-                        await shareURL;
-                    } else {
-                        const fetchPromise = (async () => {
-                            const res = await fetch("/rooms/url", {
-                                method: "GET",
-                            });
-                            const result = await res.json();
-                            return result.url;
-                        })();
-                        shareURL = fetchPromise;
-                        shareURL = await fetchPromise;
-                    }
+                    const fetchPromise = (async () => {
+                        const res = await fetch("/rooms/url", {
+                            method: "GET",
+                        });
+                        const result = await res.json();
+                        return result.url;
+                    })();
+                    shareURL = fetchPromise;
                 }
 
-                const actualURL = new URL(shareURL, url.origin);
-                await window.navigator.clipboard.writeText(actualURL);
-                $("#share").text("Copied!");
-                clearTimeout(lastTimeout);
-                lastTimeout = setTimeout(() => {
-                    $("#share").text("Share");
-                }, 2000);
+                const actualURLPromise = new Promise((res, rej) => {
+                    if (typeof shareURL === "string") {
+                        res(`${new URL(shareURL, url.origin)}`);
+                    } else {
+                        shareURL.then((shareURLString) => {
+                            res(`${new URL(shareURLString, url.origin)}`);
+                        }, rej);
+                    }
+                });
+
+                window.navigator.clipboard.write([
+                    new ClipboardItem({
+                        'text/plain': actualURLPromise,
+                    })
+                ]).then(() => {
+                    $("#share").text("Copied!");
+                    clearTimeout(lastTimeout);
+                    lastTimeout = setTimeout(() => {
+                        $("#share").text("Share");
+                    }, 2000);
+                });
             });
             $("#clear").on("click", () => {
                 const clearDialog = $("#clear-dialog")[0];
