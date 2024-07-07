@@ -58,7 +58,6 @@
                 await new Promise((res) => {
                     dialog.onclose = res;
                 });
-                window.roomToken = token;
                 window.history.pushState({ token }, "", "/playground");
             }
 
