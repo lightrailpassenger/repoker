@@ -1,4 +1,5 @@
 import { deleteCookie, getCookies } from "cookies";
+import { extname } from "path";
 
 import { getUserMapping } from "../kv/mod.js";
 import { createJSONResponse } from "../utils/createResponse.js";
@@ -8,6 +9,7 @@ const routeToFileMap = new Map([
     ["/welcome", "frontend/welcome.html"],
     ["/create", "frontend/create.html"],
     ["/playground", "frontend/room.html"],
+    ["/assets/og.png", "assets/og.png"],
     ["/constants/card.js", "constants/card.js"],
     ["/constants/error.js", "constants/error.js"],
 ]);
@@ -21,13 +23,23 @@ const rewritePaths = new Set([
     "frontend/create.html",
 ]);
 
+const extensionToContentTypeMap = new Map([
+    [".html", "text/html; charset=utf-8"],
+    [".js", "text/javascript"],
+    [".png", "image/png"],
+]);
+
 const handleServeFile = async (kv, url, requestHeaders) => {
     try {
         const { pathname, searchParams } = url;
         const file = routeToFileMap.get(pathname) ?? "frontend/not_found.html";
-        const contentType = file.endsWith(".html")
-            ? "text/html; charset=utf-8"
-            : "text/javascript";
+        const ext = extname(file);
+        const contentType = extensionToContentTypeMap.get(ext);
+
+        if (!contentType) {
+            throw new Error(`Content type not found for file extension ${ext}`);
+        }
+
         const headers = new Headers();
         headers.append("Content-Type", contentType);
 
