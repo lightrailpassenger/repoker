@@ -64,7 +64,7 @@
                 await new Promise((res) => {
                     dialog.onclose = res;
                 });
-                window.history.pushState({ token }, "", "/playground");
+                window.history.replaceState({ token }, "", "/playground");
             }
 
             const createState = (vote, shown) => {
