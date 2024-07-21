@@ -29,10 +29,12 @@ const extensionToContentTypeMap = new Map([
     [".png", "image/png"],
 ]);
 
+const NOT_FOUND_FILE_NAME = "frontend/not_found.html";
+
 const handleServeFile = async (kv, url, requestHeaders) => {
     try {
         const { pathname, searchParams } = url;
-        const file = routeToFileMap.get(pathname) ?? "frontend/not_found.html";
+        const file = routeToFileMap.get(pathname) ?? NOT_FOUND_FILE_NAME;
         const ext = extname(file);
         const contentType = extensionToContentTypeMap.get(ext);
 
@@ -78,7 +80,10 @@ const handleServeFile = async (kv, url, requestHeaders) => {
         }
 
         const { readable } = await Deno.open(`src/${file}`, { read: true });
-        return new Response(readable, { headers });
+        return new Response(readable, {
+            headers,
+            status: file === NOT_FOUND_FILE_NAME ? 404 : 200,
+        });
     } catch (err) {
         console.error(err);
 
