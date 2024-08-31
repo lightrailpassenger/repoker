@@ -201,11 +201,33 @@ const watch = async function* (kv, roomToken) {
     }
 };
 
+const gc = async (kv) => {
+    for await (const { key } of kv.list({ prefix: [] })) {
+        try {
+            const [token, type] = key;
+
+            if (type !== ROOM_NAME_KEY) {
+                const { value: roomName } = await kv.get([
+                    token,
+                    ROOM_NAME_KEY,
+                ]);
+
+                if (!roomName) {
+                    await kv.delete(key);
+                }
+            }
+        } catch {
+            // pass
+        }
+    }
+};
+
 export {
     clear,
     createRoom,
     createUser,
     flip,
+    gc,
     getRoomInfo,
     getUserMapping,
     vote,

@@ -1,5 +1,7 @@
 import CaptchaVerifier from "./captcha/Verifier.js";
 
+import { run } from "./cron/index.js";
+
 import { createConnection } from "./routes/connection.js";
 import { handleServeFile } from "./routes/frontend.js";
 import { createRoomHandler } from "./routes/room.js";
@@ -100,3 +102,5 @@ Deno.serve({
         }, 404);
     },
 });
+
+run(kv, { immediate: true });
