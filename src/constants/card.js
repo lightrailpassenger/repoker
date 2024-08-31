@@ -11,6 +11,8 @@ const availableCards = new Set([
     "8",
     "13",
     "21",
+    "34",
+    "Infinity",
     "?",
 ]);
 
