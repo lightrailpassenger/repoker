@@ -63,6 +63,8 @@ const handleCreateConnection = async (
     _event,
     kv,
 ) => {
+    let onClose;
+
     try {
         const { headers } = request;
         const cookies = getCookies(headers);
@@ -78,11 +80,33 @@ const handleCreateConnection = async (
             socket.send("not_found");
         }
 
-        for await (const state of watch(kv, roomToken)) {
-            socket.send(JSON.stringify({
-                roomState: state,
-            }));
-        }
+        let isClosed = false;
+
+        onClose = () => {
+            isClosed = true;
+        };
+
+        (async () => {
+            try {
+                for await (const state of watch(kv, roomToken)) {
+                    if (isClosed) {
+                        break;
+                    }
+
+                    socket.send(JSON.stringify({
+                        roomState: state,
+                    }));
+                }
+            } catch (err) {
+                console.error(err);
+                try {
+                    socket.send("error");
+                    socket.close();
+                } catch (err2) {
+                    console.error(err2);
+                }
+            }
+        })();
     } catch (err) {
         console.error(err);
         try {
@@ -92,6 +116,8 @@ const handleCreateConnection = async (
             console.error(err2);
         }
     }
+
+    return { onClose };
 };
 
 const handleConnection = async (socket, request, _response, event, kv) => {
@@ -131,8 +157,9 @@ export function createConnection(kv) {
         handleConnection(socket, request, response, event) {
             return handleConnection(socket, request, response, event, kv);
         },
-        handleConnectionClose() {
-            return () => {}; // TODO
+        handleConnectionClose(_socket, _request, _response, _event, onClose) {
+            // TODO: Any extra logic?
+            return onClose?.();
         },
     };
 }

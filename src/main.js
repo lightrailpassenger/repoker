@@ -35,20 +35,27 @@ Deno.serve({
             if (upgradeHeader === "websocket") {
                 const { socket, response } = Deno.upgradeWebSocket(request);
 
-                socket.onopen = (event) => {
-                    handleCreateConnection(
+                socket.onopen = async (event) => {
+                    const { onClose } = await handleCreateConnection(
                         socket,
                         request,
                         response,
                         event,
                         kv,
                     );
-                };
-                socket.onmessage = (event) => {
-                    handleConnection(socket, request, response, event);
-                };
-                socket.onclose = (event) => {
-                    handleConnectionClose(socket, request, response, event);
+
+                    socket.onmessage = (event) => {
+                        handleConnection(socket, request, response, event);
+                    };
+                    socket.onclose = (event) => {
+                        handleConnectionClose(
+                            socket,
+                            request,
+                            response,
+                            event,
+                            onClose,
+                        );
+                    };
                 };
 
                 return response;
