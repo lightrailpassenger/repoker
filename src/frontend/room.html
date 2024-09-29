@@ -68,19 +68,22 @@
             }
 
             const createState = (vote, shown) => {
+                const tdClass = "col-md-3 col-sm-4 col-6";
                 const table = $("<table/>").attr("class", "table table-striped");
                 const head = $("<thead/>").append(
                     $("<tr/>").append(
-                        $("<td/>").attr("class", "col-md-3 col-sm-4 col-6").text("Name"),
-                        $("<td/>").attr("class", "col-md-3 col-sm-4 col-6").text("Vote"),
+                        $("<td/>").attr("class", tdClass).text("Name"),
+                        $("<td/>").attr("class", tdClass).text("Vote"),
                     )
                 );
                 table.append(head);
                 const body = $("<tbody/>");
+                const rowTdClass = shown ? tdClass : `${tdClass} bg-warning`;
+
                 for (const [name, value] of Object.entries(vote)) {
                     const row = $("<tr/>");
-                    row.append($("<td/>").attr("class", "col-md-3 col-sm-4 col-6").text(name));
-                    row.append($("<td/>").attr("class", "col-md-3 col-sm-4 col-6").text(shown || !value ? value : "Invisible"));
+                    row.append($("<td/>").attr("class", tdClass).text(name));
+                    row.append($("<td/>").attr("class", rowTdClass).text(shown || !value ? value : "Invisible"));
                     body.append(row);
                 }
 
