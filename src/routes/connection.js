@@ -119,6 +119,14 @@ const handleCreateConnection = async (
             "user_token": userToken,
         } = cookies;
 
+        if (!roomToken) {
+            socket.send("not_found");
+
+            return {
+                onClose: () => {},
+            };
+        }
+
         const room = await getRoomInfo(kv, roomToken, userToken);
 
         if (room?.userId) {
