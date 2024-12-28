@@ -39,9 +39,7 @@ const getRoomInfo = async (kv, roomToken, myToken) => {
         { value: mapping },
         { value: ids },
         {
-            value: {
-                token: firstUserToken,
-            },
+            value: firstUserInfo,
         },
     ] = await kv.getMany([
         [roomToken, CARD_KEY],
@@ -74,7 +72,11 @@ const getRoomInfo = async (kv, roomToken, myToken) => {
     };
 
     if (myToken) {
-        result.isFirst = firstUserToken === myToken;
+        const { token: firstUserToken = null } = firstUserInfo ?? {};
+
+        result.isFirst = firstUserToken === null
+            ? null
+            : firstUserToken === myToken;
         result.userId = ids[myToken];
     }
 
