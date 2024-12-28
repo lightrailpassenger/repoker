@@ -3,7 +3,10 @@
 ## Run
 
 ```bash
-deno --unstable-kv --unstable-cron run --allow-env --allow-net --allow-read src/main.js
+deno task main
+
+# or
+deno run --unstable-kv --unstable-cron --allow-env --allow-net --allow-read src/main.js
 ```
 
 ## Environment variables
