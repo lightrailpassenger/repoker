@@ -43,6 +43,8 @@
             const token = searchParams.get("id");
             const dialog = $("#join-dialog")[0];
 
+            let isFirst;
+
             if (token) {
                 const { ok } = await fetch(
                     `/rooms/url?token=${
@@ -70,6 +72,7 @@
                         },
                     });
                     if (res.ok) {
+                        ({ isFirst } = await res.json());
                         dialog.close();
                     } else {
                         let message =
@@ -127,7 +130,8 @@
                     : `${tdClass} bg-warning`;
 
                 for (
-                    const [name, value] of Object.entries(vote)
+                    const [name, { vote: value, id }] of Object
+                        .entries(vote)
                 ) {
                     const row = $("<tr/>");
                     row.append(

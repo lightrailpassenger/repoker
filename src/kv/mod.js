@@ -8,6 +8,8 @@ const CARD_KEY = "card";
 const ROOM_NAME_KEY = "roomName";
 const ROOM_VOTE_KEY = "roomVote";
 const USER_NAME_KEY = "userNameKey";
+const USER_TOKEN_TO_ID_KEY = "userTokenToId";
+const FIRST_USER_KEY = "firstUser";
 
 const EXPIRE_MS = 3 * 60 * 60 * 1000;
 const MAX_USERS_COUNT = 100;
@@ -23,6 +25,7 @@ const createRoom = async (kv, roomName, cards) => {
         }, { expireIn: EXPIRE_MS })
         .set([roomToken, ROOM_NAME_KEY], roomName, { expireIn: EXPIRE_MS })
         .set([roomToken, USER_NAME_KEY], {}, { expireIn: EXPIRE_MS })
+        .set([roomToken, USER_TOKEN_TO_ID_KEY], {}, { expireIn: EXPIRE_MS })
         .commit();
 
     return roomToken;
@@ -34,11 +37,13 @@ const getRoomInfo = async (kv, roomToken) => {
         { value: name },
         { value: roomVotes },
         { value: mapping },
+        { value: ids },
     ] = await kv.getMany([
         [roomToken, CARD_KEY],
         [roomToken, ROOM_NAME_KEY],
         [roomToken, ROOM_VOTE_KEY],
         [roomToken, USER_NAME_KEY],
+        [roomToken, USER_TOKEN_TO_ID_KEY],
     ]);
 
     if (!cards || !name || !roomVotes || !mapping) {
@@ -49,7 +54,10 @@ const getRoomInfo = async (kv, roomToken) => {
     const { vote, shown } = roomVotes;
 
     for (const key in mapping) {
-        state[mapping[key]] = vote[key] ?? null;
+        state[mapping[key]] = {
+            vote: vote[key] ?? null,
+            id: ids[key],
+        };
     }
 
     return {
@@ -62,10 +70,17 @@ const getRoomInfo = async (kv, roomToken) => {
 
 const createUser = async (kv, roomToken, username) => {
     const newToken = await generateToken();
-    const usernameRes = await kv.get([roomToken, USER_NAME_KEY]);
+    const [
+        usernameRes,
+        userTokenToIdRes,
+    ] = await kv.getMany([
+        [roomToken, USER_NAME_KEY],
+        [roomToken, USER_TOKEN_TO_ID_KEY],
+    ]);
 
     let transaction;
     let count = 0;
+    let isFirst;
 
     do {
         const { value } = usernameRes;
@@ -91,16 +106,37 @@ const createUser = async (kv, roomToken, username) => {
             ...value,
             [newToken]: username,
         };
+        const newUserTokenToIdValue = {
+            ...userTokenToIdRes.value,
+            [newToken]: crypto.randomUUID(),
+        };
 
         count++;
-        transaction = await kv.atomic()
+        let pendingTransaction = kv.atomic()
             .check(usernameRes)
+            .check(userTokenToIdRes)
             .set([roomToken, USER_NAME_KEY], newValue)
-            .commit();
+            .set([roomToken, USER_TOKEN_TO_ID_KEY], newUserTokenToIdValue);
+
+        isFirst = Object.keys(value).length === 0;
+
+        if (isFirst) {
+            pendingTransaction = pendingTransaction.set([
+                roomToken,
+                FIRST_USER_KEY,
+            ], {
+                token: newToken,
+            });
+        }
+
+        transaction = await pendingTransaction.commit();
     } while (!transaction.ok && count <= MAX_TRY);
 
     if (transaction.ok) {
-        return newToken;
+        return {
+            token: newToken,
+            isFirst,
+        };
     } else {
         throw new Error("Tried too many times");
     }
@@ -183,15 +219,22 @@ const watch = async function* (kv, roomToken) {
             [roomToken, USER_NAME_KEY],
         ])
     ) {
-        const [{ value: { vote: roomVote, shown } }, { value: mapping }] =
-            await kv.getMany([
-                [roomToken, ROOM_VOTE_KEY],
-                [roomToken, USER_NAME_KEY],
-            ]);
+        const [
+            { value: { vote: roomVote, shown } },
+            { value: mapping },
+            { value: ids },
+        ] = await kv.getMany([
+            [roomToken, ROOM_VOTE_KEY],
+            [roomToken, USER_NAME_KEY],
+            [roomToken, USER_TOKEN_TO_ID_KEY],
+        ]);
         const mappedState = Object.create(null);
 
         for (const key in mapping) {
-            mappedState[mapping[key]] = roomVote[key] ?? null;
+            mappedState[mapping[key]] = {
+                vote: roomVote[key] ?? null,
+                id: ids[key],
+            };
         }
 
         yield {

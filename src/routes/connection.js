@@ -28,7 +28,11 @@ const handleCreateUser = async (kv, request) => {
             return createJSONResponse({ err: "BAD_REQUEST" }, 400);
         }
 
-        const userToken = await createUser(kv, mergedRoomToken, username);
+        const { isFirst, token: userToken } = await createUser(
+            kv,
+            mergedRoomToken,
+            username,
+        );
         const headers = new Headers();
 
         setCookie(headers, {
@@ -42,7 +46,7 @@ const handleCreateUser = async (kv, request) => {
             httpOnly: true,
         });
 
-        return createJSONResponse({ created: true }, 201, headers);
+        return createJSONResponse({ created: true, isFirst }, 201, headers);
     } catch (err) {
         if (err instanceof JSONResponseError) {
             const { value, status } = err.code;
