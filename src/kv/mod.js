@@ -31,19 +31,25 @@ const createRoom = async (kv, roomName, cards) => {
     return roomToken;
 };
 
-const getRoomInfo = async (kv, roomToken) => {
+const getRoomInfo = async (kv, roomToken, myToken) => {
     const [
         { value: cards },
         { value: name },
         { value: roomVotes },
         { value: mapping },
         { value: ids },
+        {
+            value: {
+                token: firstUserToken,
+            },
+        },
     ] = await kv.getMany([
         [roomToken, CARD_KEY],
         [roomToken, ROOM_NAME_KEY],
         [roomToken, ROOM_VOTE_KEY],
         [roomToken, USER_NAME_KEY],
         [roomToken, USER_TOKEN_TO_ID_KEY],
+        [roomToken, FIRST_USER_KEY],
     ]);
 
     if (!cards || !name || !roomVotes || !mapping) {
@@ -60,16 +66,24 @@ const getRoomInfo = async (kv, roomToken) => {
         };
     }
 
-    return {
+    const result = {
         name: name,
         cards: cards,
         vote: state,
         shown,
     };
+
+    if (myToken) {
+        result.isFirst = firstUserToken === myToken;
+        result.userId = ids[myToken];
+    }
+
+    return result;
 };
 
 const createUser = async (kv, roomToken, username) => {
     const newToken = await generateToken();
+    const newUserId = crypto.randomUUID();
     const [
         usernameRes,
         userTokenToIdRes,
@@ -108,7 +122,7 @@ const createUser = async (kv, roomToken, username) => {
         };
         const newUserTokenToIdValue = {
             ...userTokenToIdRes.value,
-            [newToken]: crypto.randomUUID(),
+            [newToken]: newUserId,
         };
 
         count++;
@@ -135,6 +149,7 @@ const createUser = async (kv, roomToken, username) => {
     if (transaction.ok) {
         return {
             token: newToken,
+            userId: newUserId,
             isFirst,
         };
     } else {
@@ -212,7 +227,7 @@ const flip = async (kv, roomToken) => {
     }
 };
 
-const watch = async function* (kv, roomToken) {
+const watch = async function* (kv, roomToken, myToken) {
     for await (
         const _change of kv.watch([
             [roomToken, ROOM_VOTE_KEY],
@@ -228,6 +243,11 @@ const watch = async function* (kv, roomToken) {
             [roomToken, USER_NAME_KEY],
             [roomToken, USER_TOKEN_TO_ID_KEY],
         ]);
+
+        if (!mapping[myToken]) {
+            yield { evicted: true };
+        }
+
         const mappedState = Object.create(null);
 
         for (const key in mapping) {
@@ -265,10 +285,70 @@ const gc = async (kv) => {
     }
 };
 
+const evictUser = async (kv, roomToken, firstUserToken, userId) => {
+    const {
+        value: {
+            token: actualFirstUserToken,
+        },
+    } = await kv.get([roomToken, FIRST_USER_KEY]);
+
+    if (actualFirstUserToken !== firstUserToken) {
+        return false;
+    }
+
+    const userTokenToIdRes = await kv.get([roomToken, USER_TOKEN_TO_ID_KEY]);
+    const { value: userTokenToIdMapping } = userTokenToIdRes;
+    const removingToken = Object.entries(userTokenToIdMapping).find((entry) => (
+        entry[1] === userId
+    ))?.[0];
+
+    if (!removingToken || firstUserToken === removingToken) {
+        return false;
+    }
+
+    const [userNameRes, roomVoteRes] = await kv.getMany([
+        [roomToken, USER_NAME_KEY],
+        [roomToken, ROOM_VOTE_KEY],
+    ]);
+
+    let transaction;
+    let count;
+
+    do {
+        const {
+            vote: {
+                [removingToken]: ___,
+                ...newVotes
+            },
+            shown,
+        } = roomVoteRes.value;
+        const {
+            [removingToken]: __,
+            ...newUserNames
+        } = userNameRes.value;
+        const {
+            [removingToken]: _,
+            ...newUserTokenToIdMapping
+        } = userTokenToIdMapping;
+
+        count++;
+        transaction = await kv.atomic()
+            .check(userNameRes)
+            .check(roomVoteRes)
+            .set([roomToken, USER_NAME_KEY], newUserNames)
+            .set([roomToken, ROOM_VOTE_KEY], { vote: newVotes, shown })
+            .set([roomToken, USER_TOKEN_TO_ID_KEY], newUserTokenToIdMapping)
+            .commit();
+    } while (!transaction.ok && count <= MAX_TRY);
+
+    return transaction.ok;
+};
+
 export {
     clear,
     createRoom,
     createUser,
+    evictUser,
     flip,
     gc,
     getRoomInfo,

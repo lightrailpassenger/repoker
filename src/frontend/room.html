@@ -30,6 +30,19 @@
             integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
             crossorigin="anonymous"
         ></script>
+        <style>
+            .x-row-hover {
+                > button {
+                    visibility: hidden;
+                }
+            }
+
+            .x-row-hover:hover {
+                > button {
+                    visibility: visible;
+                }
+            }
+        </style>
         <script type="module">
             import { errorCode } from "/constants/error.js";
 
@@ -44,6 +57,7 @@
             const dialog = $("#join-dialog")[0];
 
             let isFirst;
+            let userId;
 
             if (token) {
                 const { ok } = await fetch(
@@ -72,7 +86,8 @@
                         },
                     });
                     if (res.ok) {
-                        ({ isFirst } = await res.json());
+                        ({ isFirst, userId } = await res
+                            .json());
                         dialog.close();
                     } else {
                         let message =
@@ -107,6 +122,28 @@
                 );
             }
 
+            let evictingUser;
+            const evictDialog = $("#evict-dialog")[0];
+
+            evictDialog.onclose = async () => {
+                if (evictDialog.returnValue === "evict") {
+                    const res = await fetch(
+                        `/users?userId=${
+                            encodeURIComponent(evictingUser.id)
+                        }`,
+                        {
+                            method: "DELETE",
+                        },
+                    );
+
+                    if (!res.ok) {
+                        // TODO: Error state
+                    }
+                }
+
+                evictDialog.close();
+            };
+
             const createState = (vote, shown) => {
                 const tdClass = "col-md-3 col-sm-4 col-6";
                 const table = $("<table/>").attr(
@@ -134,10 +171,35 @@
                         .entries(vote)
                 ) {
                     const row = $("<tr/>");
+                    const span = $("<span/>")
+                        .attr(
+                            "class",
+                            "x-row-hover d-flex justify-content-between align-items-baseline",
+                        )
+                        .append($("<span/>").text(name));
+
+                    if (isFirst && id !== userId) {
+                        span.append(
+                            $("<button/>")
+                                .attr(
+                                    "class",
+                                    "btn btn-outline-dark btn-sm",
+                                )
+                                .text("Evict")
+                                .on("click", () => {
+                                    evictingUser = { id };
+                                    $("#evict-dialog p").text(
+                                        `Evict user ${name}?`,
+                                    );
+                                    $("#evict-dialog")[0]
+                                        .showModal();
+                                }),
+                        );
+                    }
+
                     row.append(
-                        $("<td/>").attr("class", tdClass).text(
-                            name,
-                        ),
+                        $("<td/>").attr("class", tdClass)
+                            .append(span),
                     );
                     row.append(
                         $("<td/>").attr("class", rowTdClass)
@@ -164,11 +226,14 @@
                     window.location = "/welcome";
                 }
 
-                const { init, ...other } = JSON.parse(data);
+                const { init, evicted, ...other } = JSON.parse(
+                    data,
+                );
 
                 if (init) {
                     const { cards, name, vote, shown } =
                         other.room;
+                    ({ isFirst, userId } = other.room);
                     $("h1").text(name);
                     for (const card of cards) {
                         const button = $("<button/>").attr(
@@ -188,6 +253,8 @@
                     $("#state > table").replaceWith(
                         createState(vote, shown),
                     );
+                } else if (evicted) {
+                    window.location = "/logout";
                 } else {
                     const { vote, shown } = other.roomState;
                     $("#state > table").replaceWith(
@@ -304,6 +371,27 @@
                             type="submit"
                         >
                             Clear
+                        </button>
+                    </div>
+                </form>
+            </dialog>
+            <dialog id="evict-dialog" class="border border-danger">
+                <form id="evict-form" method="dialog">
+                    <p></p>
+                    <div class="text-end">
+                        <button
+                            class="btn btn-primary"
+                            value="cancel"
+                            type="submit"
+                        >
+                            Go Back
+                        </button>
+                        <button
+                            class="btn btn-danger"
+                            value="evict"
+                            type="submit"
+                        >
+                            Evict
                         </button>
                     </div>
                 </form>

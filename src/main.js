@@ -17,8 +17,9 @@ const {
     handleCreateConnection,
     handleConnection,
     handleConnectionClose,
+    handleDeleteUser,
 } = createConnection(kv);
-const { handleCreateRoom, handleShareRoom } = createRoomHandler(
+const { handleCreateRoom, handleShareRoom, handleLogout } = createRoomHandler(
     kv,
     captchaVerifier,
 );
@@ -85,6 +86,12 @@ Deno.serve({
         } else if (pathname.startsWith("/users")) {
             if (method === "POST") {
                 return await handleCreateUser(request);
+            } else if (method === "DELETE") {
+                return await handleDeleteUser(request);
+            }
+        } else if (pathname.startsWith("/logout")) {
+            if (method === "GET") {
+                return await handleLogout(request);
             }
         } else if (method === "GET" && pathname === "/" || pathname === "") {
             return new Response(undefined, {
