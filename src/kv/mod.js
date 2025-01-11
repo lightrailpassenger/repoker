@@ -8,6 +8,8 @@ const CARD_KEY = "card";
 const ROOM_NAME_KEY = "roomName";
 const ROOM_VOTE_KEY = "roomVote";
 const USER_NAME_KEY = "userNameKey";
+const USER_TOKEN_TO_ID_KEY = "userTokenToId";
+const FIRST_USER_KEY = "firstUser";
 
 const EXPIRE_MS = 3 * 60 * 60 * 1000;
 const MAX_USERS_COUNT = 100;
@@ -23,22 +25,29 @@ const createRoom = async (kv, roomName, cards) => {
         }, { expireIn: EXPIRE_MS })
         .set([roomToken, ROOM_NAME_KEY], roomName, { expireIn: EXPIRE_MS })
         .set([roomToken, USER_NAME_KEY], {}, { expireIn: EXPIRE_MS })
+        .set([roomToken, USER_TOKEN_TO_ID_KEY], {}, { expireIn: EXPIRE_MS })
         .commit();
 
     return roomToken;
 };
 
-const getRoomInfo = async (kv, roomToken) => {
+const getRoomInfo = async (kv, roomToken, myToken) => {
     const [
         { value: cards },
         { value: name },
         { value: roomVotes },
         { value: mapping },
+        { value: ids },
+        {
+            value: firstUserInfo,
+        },
     ] = await kv.getMany([
         [roomToken, CARD_KEY],
         [roomToken, ROOM_NAME_KEY],
         [roomToken, ROOM_VOTE_KEY],
         [roomToken, USER_NAME_KEY],
+        [roomToken, USER_TOKEN_TO_ID_KEY],
+        [roomToken, FIRST_USER_KEY],
     ]);
 
     if (!cards || !name || !roomVotes || !mapping) {
@@ -49,23 +58,45 @@ const getRoomInfo = async (kv, roomToken) => {
     const { vote, shown } = roomVotes;
 
     for (const key in mapping) {
-        state[mapping[key]] = vote[key] ?? null;
+        state[mapping[key]] = {
+            vote: vote[key] ?? null,
+            id: ids[key],
+        };
     }
 
-    return {
+    const result = {
         name: name,
         cards: cards,
         vote: state,
         shown,
     };
+
+    if (myToken) {
+        const { token: firstUserToken = null } = firstUserInfo ?? {};
+
+        result.isFirst = firstUserToken === null
+            ? null
+            : firstUserToken === myToken;
+        result.userId = ids[myToken];
+    }
+
+    return result;
 };
 
 const createUser = async (kv, roomToken, username) => {
     const newToken = await generateToken();
-    const usernameRes = await kv.get([roomToken, USER_NAME_KEY]);
+    const newUserId = crypto.randomUUID();
+    const [
+        usernameRes,
+        userTokenToIdRes,
+    ] = await kv.getMany([
+        [roomToken, USER_NAME_KEY],
+        [roomToken, USER_TOKEN_TO_ID_KEY],
+    ]);
 
     let transaction;
     let count = 0;
+    let isFirst;
 
     do {
         const { value } = usernameRes;
@@ -91,16 +122,38 @@ const createUser = async (kv, roomToken, username) => {
             ...value,
             [newToken]: username,
         };
+        const newUserTokenToIdValue = {
+            ...userTokenToIdRes.value,
+            [newToken]: newUserId,
+        };
 
         count++;
-        transaction = await kv.atomic()
+        let pendingTransaction = kv.atomic()
             .check(usernameRes)
+            .check(userTokenToIdRes)
             .set([roomToken, USER_NAME_KEY], newValue)
-            .commit();
+            .set([roomToken, USER_TOKEN_TO_ID_KEY], newUserTokenToIdValue);
+
+        isFirst = Object.keys(value).length === 0;
+
+        if (isFirst) {
+            pendingTransaction = pendingTransaction.set([
+                roomToken,
+                FIRST_USER_KEY,
+            ], {
+                token: newToken,
+            });
+        }
+
+        transaction = await pendingTransaction.commit();
     } while (!transaction.ok && count <= MAX_TRY);
 
     if (transaction.ok) {
-        return newToken;
+        return {
+            token: newToken,
+            userId: newUserId,
+            isFirst,
+        };
     } else {
         throw new Error("Tried too many times");
     }
@@ -176,22 +229,34 @@ const flip = async (kv, roomToken) => {
     }
 };
 
-const watch = async function* (kv, roomToken) {
+const watch = async function* (kv, roomToken, myToken) {
     for await (
         const _change of kv.watch([
             [roomToken, ROOM_VOTE_KEY],
             [roomToken, USER_NAME_KEY],
         ])
     ) {
-        const [{ value: { vote: roomVote, shown } }, { value: mapping }] =
-            await kv.getMany([
-                [roomToken, ROOM_VOTE_KEY],
-                [roomToken, USER_NAME_KEY],
-            ]);
+        const [
+            { value: { vote: roomVote, shown } },
+            { value: mapping },
+            { value: ids },
+        ] = await kv.getMany([
+            [roomToken, ROOM_VOTE_KEY],
+            [roomToken, USER_NAME_KEY],
+            [roomToken, USER_TOKEN_TO_ID_KEY],
+        ]);
+
+        if (!mapping[myToken]) {
+            yield { evicted: true };
+        }
+
         const mappedState = Object.create(null);
 
         for (const key in mapping) {
-            mappedState[mapping[key]] = roomVote[key] ?? null;
+            mappedState[mapping[key]] = {
+                vote: roomVote[key] ?? null,
+                id: ids[key],
+            };
         }
 
         yield {
@@ -222,10 +287,70 @@ const gc = async (kv) => {
     }
 };
 
+const evictUser = async (kv, roomToken, firstUserToken, userId) => {
+    const {
+        value: {
+            token: actualFirstUserToken,
+        },
+    } = await kv.get([roomToken, FIRST_USER_KEY]);
+
+    if (actualFirstUserToken !== firstUserToken) {
+        return false;
+    }
+
+    const userTokenToIdRes = await kv.get([roomToken, USER_TOKEN_TO_ID_KEY]);
+    const { value: userTokenToIdMapping } = userTokenToIdRes;
+    const removingToken = Object.entries(userTokenToIdMapping).find((entry) => (
+        entry[1] === userId
+    ))?.[0];
+
+    if (!removingToken || firstUserToken === removingToken) {
+        return false;
+    }
+
+    const [userNameRes, roomVoteRes] = await kv.getMany([
+        [roomToken, USER_NAME_KEY],
+        [roomToken, ROOM_VOTE_KEY],
+    ]);
+
+    let transaction;
+    let count;
+
+    do {
+        const {
+            vote: {
+                [removingToken]: ___,
+                ...newVotes
+            },
+            shown,
+        } = roomVoteRes.value;
+        const {
+            [removingToken]: __,
+            ...newUserNames
+        } = userNameRes.value;
+        const {
+            [removingToken]: _,
+            ...newUserTokenToIdMapping
+        } = userTokenToIdMapping;
+
+        count++;
+        transaction = await kv.atomic()
+            .check(userNameRes)
+            .check(roomVoteRes)
+            .set([roomToken, USER_NAME_KEY], newUserNames)
+            .set([roomToken, ROOM_VOTE_KEY], { vote: newVotes, shown })
+            .set([roomToken, USER_TOKEN_TO_ID_KEY], newUserTokenToIdMapping)
+            .commit();
+    } while (!transaction.ok && count <= MAX_TRY);
+
+    return transaction.ok;
+};
+
 export {
     clear,
     createRoom,
     createUser,
+    evictUser,
     flip,
     gc,
     getRoomInfo,

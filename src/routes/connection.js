@@ -3,6 +3,7 @@ import { getCookies, setCookie } from "cookies";
 import {
     clear,
     createUser,
+    evictUser,
     flip,
     getRoomInfo,
     vote,
@@ -28,7 +29,11 @@ const handleCreateUser = async (kv, request) => {
             return createJSONResponse({ err: "BAD_REQUEST" }, 400);
         }
 
-        const userToken = await createUser(kv, mergedRoomToken, username);
+        const { isFirst, userId, token: userToken } = await createUser(
+            kv,
+            mergedRoomToken,
+            username,
+        );
         const headers = new Headers();
 
         setCookie(headers, {
@@ -42,7 +47,11 @@ const handleCreateUser = async (kv, request) => {
             httpOnly: true,
         });
 
-        return createJSONResponse({ created: true }, 201, headers);
+        return createJSONResponse(
+            { created: true, isFirst, userId },
+            201,
+            headers,
+        );
     } catch (err) {
         if (err instanceof JSONResponseError) {
             const { value, status } = err.code;
@@ -50,6 +59,43 @@ const handleCreateUser = async (kv, request) => {
             return createJSONResponse({ code: value }, status);
         }
 
+        console.error(err);
+
+        return createJSONResponse({ err: "INTERNAL_SERVER_ERROR" }, 500);
+    }
+};
+
+const handleDeleteUser = async (
+    kv,
+    request,
+) => {
+    try {
+        const { url, headers } = request;
+        const cookies = getCookies(headers);
+        const {
+            "room_token": roomToken,
+            "user_token": userToken,
+        } = cookies;
+        const { searchParams } = new URL(url);
+        const userId = searchParams.get("userId");
+
+        if (!userId) {
+            return createJSONResponse({ err: "BAD_REQUEST" }, 400);
+        }
+
+        const isSuccessful = await evictUser(
+            kv,
+            roomToken,
+            userToken,
+            userId,
+        );
+
+        if (!isSuccessful) {
+            return createJSONResponse({ err: "FORBIDDEN" }, 403);
+        }
+
+        return createJSONResponse({ res: "OK" }, 200);
+    } catch (err) {
         console.error(err);
 
         return createJSONResponse({ err: "INTERNAL_SERVER_ERROR" }, 500);
@@ -70,11 +116,20 @@ const handleCreateConnection = async (
         const cookies = getCookies(headers);
         const {
             "room_token": roomToken,
+            "user_token": userToken,
         } = cookies;
 
-        const room = await getRoomInfo(kv, roomToken);
+        if (!roomToken) {
+            socket.send("not_found");
 
-        if (room) {
+            return {
+                onClose: () => {},
+            };
+        }
+
+        const room = await getRoomInfo(kv, roomToken, userToken);
+
+        if (room?.userId) {
             socket.send(JSON.stringify({ init: true, room }));
         } else {
             socket.send("not_found");
@@ -88,9 +143,11 @@ const handleCreateConnection = async (
 
         (async () => {
             try {
-                for await (const state of watch(kv, roomToken)) {
+                for await (const state of watch(kv, roomToken, userToken)) {
                     if (isClosed) {
                         break;
+                    } else if (state.evicted) {
+                        socket.send(JSON.stringify({ evicted: true }));
                     }
 
                     socket.send(JSON.stringify({
@@ -160,6 +217,9 @@ export function createConnection(kv) {
         handleConnectionClose(_socket, _request, _response, _event, onClose) {
             // TODO: Any extra logic?
             return onClose?.();
+        },
+        handleDeleteUser(request) {
+            return handleDeleteUser(kv, request);
         },
     };
 }

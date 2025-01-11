@@ -1,4 +1,4 @@
-import { getCookies, setCookie } from "cookies";
+import { deleteCookie, getCookies, setCookie } from "cookies";
 
 import { availableCards } from "../constants/card.js";
 import { createRoom, getRoomInfo } from "../kv/mod.js";
@@ -89,6 +89,20 @@ const handleShareRoom = async (kv, request) => {
     }
 };
 
+const handleLogout = (request) => {
+    const { headers: reqHeaders } = request;
+    const headers = new Headers(reqHeaders);
+
+    headers.append("Location", "/welcome");
+    deleteCookie(headers, "room_token");
+    deleteCookie(headers, "user_token");
+
+    return new Response(null, {
+        headers,
+        status: 307,
+    });
+};
+
 export function createRoomHandler(kv, captchaVerifier) {
     return {
         handleCreateRoom(request) {
@@ -97,5 +111,6 @@ export function createRoomHandler(kv, captchaVerifier) {
         handleShareRoom(request) {
             return handleShareRoom(kv, request);
         },
+        handleLogout,
     };
 }
