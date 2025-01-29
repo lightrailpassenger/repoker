@@ -1,9 +1,10 @@
 class ListenerStore {
     #kv;
-    #listenerMap = new Map();
+    #listenerMap;
 
     constructor(kv) {
         this.#kv = kv;
+        this.#listenerMap = new Map();
     }
 
     static #getMapKey(type, key) {
@@ -32,6 +33,7 @@ class ListenerStore {
         testMap.set("testKey", "testValue");
 
         const listenerMap = this.#listenerMap;
+        listenerMap.set("another", "testValue");
 
         this.#kv.listenQueue(async (message) => {
             console.log("Receiving message", message);
