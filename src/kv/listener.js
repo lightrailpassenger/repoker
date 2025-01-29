@@ -1,3 +1,5 @@
+import { getLatest, pushItem } from "./mod.js";
+
 class ListenerStore {
     #kv;
     #listenerMap = new Map();
@@ -26,29 +28,33 @@ class ListenerStore {
     }
 
     notify(type, key, payload) {
-        this.#kv.enqueue({ type, key, payload });
+        pushItem(
+            this.#kv,
+            "temp-queue",
+            { type, key, payload },
+        );
     }
 
-    startListening() {
-        this.#kv.listenQueue((message) => {
-            try {
-                const { key, type, payload } = message;
-                const mapKey = ListenerStore.#getMapKey(type, key);
-                const callbacks = this.#listenerMap.get(mapKey);
+    async startListening() {
+        for await (const value of getLatest(this.#kv, "temp-queue")) {
+            if (!value) {
+                continue;
+            }
 
-                if (callbacks) {
-                    for (const callback of callbacks) {
-                        try {
-                            callback(payload);
-                        } catch {
-                            // pass
-                        }
+            const { type, key, payload } = value;
+            const mapKey = ListenerStore.#getMapKey(type, key);
+            const callbacks = this.#listenerMap.get(mapKey);
+
+            if (callbacks) {
+                for (const callback of callbacks) {
+                    try {
+                        callback(payload);
+                    } catch {
+                        // pass
                     }
                 }
-            } catch {
-                // pass
             }
-        });
+        }
     }
 }
 

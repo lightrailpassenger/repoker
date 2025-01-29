@@ -346,6 +346,30 @@ const evictUser = async (kv, roomToken, firstUserToken, userId) => {
     return transaction.ok;
 };
 
+const pushItem = async (kv, key, item) => {
+    const res = await kv.get([key]);
+    let transaction;
+
+    do {
+        const { value } = res;
+
+        transaction = await kv.atomic()
+            .check(res)
+            .set([key], value ? [...value, item] : [item])
+            .commit();
+    } while (!transaction.ok && count <= MAX_TRY);
+
+    return transaction.ok;
+};
+
+const getLatest = async function* (kv, key) {
+    for await (const _change of kv.watch([[key]])) {
+        const { value } = await kv.get([key]);
+
+        yield value?.at(-1) ?? null;
+    }
+};
+
 export {
     clear,
     createRoom,
@@ -353,8 +377,10 @@ export {
     evictUser,
     flip,
     gc,
+    getLatest,
     getRoomInfo,
     getUserMapping,
+    pushItem,
     vote,
     watch,
 };
