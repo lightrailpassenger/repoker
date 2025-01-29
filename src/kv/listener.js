@@ -1,10 +1,9 @@
 class ListenerStore {
     #kv;
-    #listenerMap;
+    #listenerMap = new Map();
 
     constructor(kv) {
         this.#kv = kv;
-        this.#listenerMap = new Map();
     }
 
     static #getMapKey(type, key) {
@@ -12,54 +11,42 @@ class ListenerStore {
     }
 
     addListener(type, key, callback) {
-        const mapKey = ListenerStore.#getMapKey(type, key);
-        console.log("Listening to key", mapKey);
-        const callbacks = this.#listenerMap.get(mapKey);
+        const callbacks = this.#listenerMap.get(
+            ListenerStore.#getMapKey(type, key),
+        );
 
         if (callbacks) {
             callbacks.add(callback);
         } else {
-            this.#listenerMap.set(mapKey, new Set([callback]));
+            this.#listenerMap.set(
+                ListenerStore.#getMapKey(type, key),
+                new Set([callback]),
+            );
         }
     }
 
     notify(type, key, payload) {
-        console.log("Enqueueing", { type, key, payload });
         this.#kv.enqueue({ type, key, payload });
     }
 
     startListening() {
-        const testMap = new Map();
-        testMap.set("testKey", "testValue");
-
-        const listenerMap = this.#listenerMap;
-        listenerMap.set("another", "testValue");
-
-        this.#kv.listenQueue(async (message) => {
-            console.log("Receiving message", message);
-            console.log("Test map", { listenerMap, testMap });
-
+        this.#kv.listenQueue((message) => {
             try {
                 const { key, type, payload } = message;
                 const mapKey = ListenerStore.#getMapKey(type, key);
-                const callbacks = listenerMap.get(mapKey);
-                console.log("Calling callbacks", {
-                    map: listenerMap,
-                    size: callbacks?.size,
-                    mapKey,
-                });
+                const callbacks = this.#listenerMap.get(mapKey);
 
                 if (callbacks) {
                     for (const callback of callbacks) {
                         try {
-                            await callback(payload);
-                        } catch (err) {
-                            console.error(err);
+                            callback(payload);
+                        } catch {
+                            // pass
                         }
                     }
                 }
-            } catch (err) {
-                console.error(err);
+            } catch {
+                // pass
             }
         });
     }

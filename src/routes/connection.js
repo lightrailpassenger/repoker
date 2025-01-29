@@ -148,11 +148,9 @@ const handleCreateConnection = async (
             messageTypes.ROOM_MESSAGE_TYPE_V1,
             roomToken,
             async (payload) => {
-                console.log("Receiving payload from handler", payload);
                 const { id, ut, msg, at } = payload;
                 const { [ut]: name } = await getUserMapping(kv, roomToken);
 
-                console.log("Responding via socket", { name, msg });
                 socket.send(JSON.stringify({
                     message: { id, name, at, msg, me: ut === userToken },
                 }));
