@@ -11,17 +11,14 @@ class ListenerStore {
     }
 
     addListener(type, key, callback) {
-        const callbacks = this.#listenerMap.get(
-            ListenerStore.#getMapKey(type, key),
-        );
+        const mapKey = ListenerStore.#getMapKey(type, key);
+        console.log("Listening to key", mapKey);
+        const callbacks = this.#listenerMap.get(mapKey);
 
         if (callbacks) {
             callbacks.add(callback);
         } else {
-            this.#listenerMap.set(
-                ListenerStore.#getMapKey(type, key),
-                new Set([callback]),
-            );
+            this.#listenerMap.set(mapKey, new Set([callback]));
         }
     }
 
@@ -37,7 +34,11 @@ class ListenerStore {
                 const { key, type, payload } = message;
                 const mapKey = ListenerStore.#getMapKey(type, key);
                 const callbacks = this.#listenerMap.get(mapKey);
-                console.log("Calling callbacks", callbacks.size);
+                console.log("Calling callbacks", {
+                    map: this.#listenerMap,
+                    size: callbacks?.size,
+                    mapKey,
+                });
 
                 if (callbacks) {
                     for (const callback of callbacks) {
