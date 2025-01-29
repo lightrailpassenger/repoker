@@ -44,6 +44,10 @@
             }
         </style>
         <script type="module">
+            import register from "/frontend/chatbox.js";
+            register();
+        </script>
+        <script type="module">
             import { errorCode } from "/constants/error.js";
 
             const url = new URL(window.location);
@@ -145,7 +149,8 @@
             };
 
             const createState = (vote, shown) => {
-                const tdClass = "col-md-3 col-sm-4 col-6";
+                const tdClass =
+                    "col-md-3 col-sm-4 col-6 align-middle";
                 const table = $("<table/>").attr(
                     "class",
                     "table table-striped",
@@ -255,7 +260,10 @@
                     );
                 } else if (evicted) {
                     window.location = "/logout";
-                } else {
+                } else if (other.message) {
+                    const { message } = other;
+                    $("chat-box")[0].pushItem(message);
+                } else if (other.roomState) {
                     const { vote, shown } = other.roomState;
                     $("#state > table").replaceWith(
                         createState(vote, shown),
@@ -324,9 +332,20 @@
                 };
                 clearDialog.showModal();
             });
+            $("chat-box").on("submit", (event) => {
+                socket.send(JSON.stringify({
+                    changes: {
+                        msg: {
+                            txt: event.detail.value,
+                            id: crypto.randomUUID(),
+                        },
+                    },
+                }));
+            });
         </script>
     </head>
     <body>
+        <chat-box></chat-box>
         <div class="container">
             <dialog id="join-dialog" class="border border-primary">
                 <form id="join-form" method="dialog">

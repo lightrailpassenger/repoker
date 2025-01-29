@@ -1,11 +1,13 @@
 import { getCookies, setCookie } from "cookies";
 
+import { types as messageTypes } from "../constants/message.js";
 import {
     clear,
     createUser,
     evictUser,
     flip,
     getRoomInfo,
+    getUserMapping,
     vote,
     watch,
 } from "../kv/mod.js";
@@ -108,6 +110,7 @@ const handleCreateConnection = async (
     _response,
     _event,
     kv,
+    listenerStore,
 ) => {
     let onClose;
 
@@ -141,6 +144,18 @@ const handleCreateConnection = async (
             isClosed = true;
         };
 
+        listenerStore.addListener(
+            messageTypes.ROOM_MESSAGE_TYPE_V1,
+            roomToken,
+            async (payload) => {
+                const { id, ut, msg, at } = payload;
+                const { [ut]: name } = await getUserMapping(kv, roomToken);
+
+                socket.send(JSON.stringify({
+                    message: { id, name, at, msg, me: ut === userToken },
+                }));
+            },
+        );
         (async () => {
             try {
                 for await (const state of watch(kv, roomToken, userToken)) {
@@ -177,7 +192,14 @@ const handleCreateConnection = async (
     return { onClose };
 };
 
-const handleConnection = async (socket, request, _response, event, kv) => {
+const handleConnection = async (
+    socket,
+    request,
+    _response,
+    event,
+    kv,
+    listenerStore,
+) => {
     try {
         const { data } = event;
         const { headers } = request;
@@ -195,6 +217,17 @@ const handleConnection = async (socket, request, _response, event, kv) => {
             await flip(kv, roomToken, userToken, Boolean(changes.flip));
         } else if (Object.prototype.hasOwnProperty.call(changes, "clear")) {
             await clear(kv, roomToken, userToken);
+        } else if (Object.prototype.hasOwnProperty.call(changes, "msg")) {
+            listenerStore.notify(
+                messageTypes.ROOM_MESSAGE_TYPE_V1,
+                roomToken,
+                {
+                    id: changes.msg.id.substring(0, 64),
+                    ut: userToken,
+                    msg: changes.msg.txt.substring(0, 2048),
+                    at: Date.now(),
+                },
+            );
         }
     } catch (err) {
         console.error(err);
@@ -203,16 +236,30 @@ const handleConnection = async (socket, request, _response, event, kv) => {
     }
 };
 
-export function createConnection(kv) {
+export function createConnection(kv, listenerStore) {
     return {
         handleCreateUser(request) {
             return handleCreateUser(kv, request);
         },
         handleCreateConnection(socket, request, response, event) {
-            return handleCreateConnection(socket, request, response, event, kv);
+            return handleCreateConnection(
+                socket,
+                request,
+                response,
+                event,
+                kv,
+                listenerStore,
+            );
         },
         handleConnection(socket, request, response, event) {
-            return handleConnection(socket, request, response, event, kv);
+            return handleConnection(
+                socket,
+                request,
+                response,
+                event,
+                kv,
+                listenerStore,
+            );
         },
         handleConnectionClose(_socket, _request, _response, _event, onClose) {
             // TODO: Any extra logic?
