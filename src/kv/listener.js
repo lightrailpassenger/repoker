@@ -31,7 +31,7 @@ class ListenerStore {
     }
 
     startListening() {
-        this.#kv.listenQueue((message) => {
+        this.#kv.listenQueue(async (message) => {
             console.log("Receiving message", message);
             try {
                 const { key, type, payload } = message;
@@ -41,7 +41,7 @@ class ListenerStore {
                 if (callbacks) {
                     for (const callback of callbacks) {
                         try {
-                            callback(payload);
+                            await callback(payload);
                         } catch (err) {
                             console.error(err);
                         }
