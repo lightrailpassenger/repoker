@@ -40,13 +40,13 @@ class ListenerStore {
                     for (const callback of callbacks) {
                         try {
                             callback(payload);
-                        } catch {
-                            // pass
+                        } catch (err) {
+                            console.error(err);
                         }
                     }
                 }
-            } catch {
-                // pass
+            } catch (err) {
+                console.error(err);
             }
         });
     }
