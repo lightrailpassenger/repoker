@@ -12,6 +12,7 @@ const routeToFileMap = new Map([
     ["/assets/og.png", "assets/og.png"],
     ["/constants/card.js", "constants/card.js"],
     ["/constants/error.js", "constants/error.js"],
+    ["/frontend/chatbox.js", "frontend/chatbox.js"],
 ]);
 const envMapping = {
     "__HCAPTCHA_SITE_KEY__": {
