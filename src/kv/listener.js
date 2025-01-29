@@ -37,6 +37,7 @@ class ListenerStore {
                 const { key, type, payload } = message;
                 const mapKey = ListenerStore.#getMapKey(type, key);
                 const callbacks = this.#listenerMap.get(mapKey);
+                console.log("Calling callbacks", callbacks.size);
 
                 if (callbacks) {
                     for (const callback of callbacks) {

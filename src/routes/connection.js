@@ -148,6 +148,7 @@ const handleCreateConnection = async (
             messageTypes.ROOM_MESSAGE_TYPE_V1,
             roomToken,
             async (payload) => {
+                console.log("Receiving payload from handler", payload);
                 const { id, ut, msg, at } = payload;
                 const { [ut]: name } = await getUserMapping(kv, roomToken);
 
