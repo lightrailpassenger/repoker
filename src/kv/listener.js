@@ -31,16 +31,18 @@ class ListenerStore {
         const testMap = new Map();
         testMap.set("testKey", "testValue");
 
+        const listenerMap = this.#listenerMap;
+
         this.#kv.listenQueue(async (message) => {
             console.log("Receiving message", message);
-            console.log("Test map", testMap);
+            console.log("Test map", { listenerMap, testMap });
 
             try {
                 const { key, type, payload } = message;
                 const mapKey = ListenerStore.#getMapKey(type, key);
-                const callbacks = this.#listenerMap.get(mapKey);
+                const callbacks = listenerMap.get(mapKey);
                 console.log("Calling callbacks", {
-                    map: this.#listenerMap,
+                    map: listenerMap,
                     size: callbacks?.size,
                     mapKey,
                 });
