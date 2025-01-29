@@ -26,11 +26,13 @@ class ListenerStore {
     }
 
     notify(type, key, payload) {
+        console.log("Enqueueing", { type, key, payload });
         this.#kv.enqueue({ type, key, payload });
     }
 
     startListening() {
         this.#kv.listenQueue((message) => {
+            console.log("Receiving message", message);
             try {
                 const { key, type, payload } = message;
                 const mapKey = ListenerStore.#getMapKey(type, key);
