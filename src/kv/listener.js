@@ -28,8 +28,13 @@ class ListenerStore {
     }
 
     startListening() {
+        const testMap = new Map();
+        testMap.set("testKey", "testValue");
+
         this.#kv.listenQueue(async (message) => {
             console.log("Receiving message", message);
+            console.log("Test map", testMap);
+
             try {
                 const { key, type, payload } = message;
                 const mapKey = ListenerStore.#getMapKey(type, key);
