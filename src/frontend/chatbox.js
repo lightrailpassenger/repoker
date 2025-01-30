@@ -15,6 +15,7 @@ class Chatbox extends HTMLElement {
 
         // FIXME: How to use ut?
         if (!has) {
+            ol.children("li.placeholder").remove();
             this.#listItemIds.add(id);
             const listItem = $('<li class="row" />')
                 .addClass(me ? "me" : "other")
@@ -78,6 +79,16 @@ class Chatbox extends HTMLElement {
                     flex: 1 1 0;
                     margin: 0;
                     padding: 5px;
+                    position: relative;
+
+                    > li.placeholder {
+                        position: absolute;
+                        top: 50%;
+                        left: 50%;
+                        text-align: center;
+                        width: 100%;
+                        transform: translate(-50%, -50%);
+                    }
                 }
             }
 
@@ -169,7 +180,9 @@ class Chatbox extends HTMLElement {
         `);
         const content = $(`
             <div class="content">
-                <ol />
+                <ol>
+                    <li class="placeholder">New chats will appear here</li>
+                </ol>
             </div>
         `);
         const form = $(`
