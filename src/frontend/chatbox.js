@@ -9,20 +9,28 @@ class Chatbox extends HTMLElement {
         this.#listItemIds = new Set();
     }
 
-    pushItem({ id, ut, name, msg, me }) {
+    pushItem({ id, at, name, msg, me }) {
         const ol = $(this.#shadow.querySelector(".content > ol"));
         const has = this.#listItemIds.has(id);
 
-        // FIXME: How to use ut?
-        if (!has) {
+        // FIXME: How to use at?
+        if (has) {
+            ol[0].querySelector(`#message-item-${id} .loading`)
+                .classList.remove("loading");
+        } else {
             ol.children("li.placeholder").remove();
             this.#listItemIds.add(id);
             const listItem = $('<li class="row" />')
+                .attr("id", `message-item-${id}`)
                 .addClass(me ? "me" : "other")
                 .append(
-                    $(me ? '<span class="me" />' : '<span class="other" />')
+                    $(
+                        me
+                            ? '<span class="me loading" />'
+                            : '<span class="other loading" />',
+                    )
                         .append(
-                            $('<span class="name" />').text(name),
+                            $('<span class="name" />').text(me ? "Me" : name),
                         )
                         .append(
                             $('<p class="message-text" />').text(msg),
@@ -30,6 +38,7 @@ class Chatbox extends HTMLElement {
                 );
             ol.append(listItem);
             listItem.ready(() => {
+                listItem.children(".other.loading").removeClass("loading");
                 ol.scrollTop(ol[0].scrollHeight);
             });
         }
@@ -97,6 +106,9 @@ class Chatbox extends HTMLElement {
             }
 
             li.row {
+                margin: 2px 0;
+                width: 100%;
+
                 > span {
                     display: inline-flex;
                     flex-direction: column;
@@ -105,13 +117,9 @@ class Chatbox extends HTMLElement {
                     border-radius: 3px;
                     color: black;
                     padding: 2px 5px;
+                    transition: background-color 0.3s ease-in;
                 }
 
-                margin: 2px 0;
-                width: 100%;
-            }
-
-            li.row {
                 p {
                     margin: 0;
                     overflow-wrap: break-word;
@@ -121,12 +129,15 @@ class Chatbox extends HTMLElement {
                     font-size: 9px;
                 }
 
+                .me.loading, .other.loading {
+                    background-color: white;
+                    border: 1px solid black;
+                }
+
                 .other {
                     background-color: grey;
                 }
-            }
 
-            li.row {
                 .me {
                     background-color: rgb(91, 191, 245);
                     text-align: right;

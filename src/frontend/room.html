@@ -333,11 +333,20 @@
                 clearDialog.showModal();
             });
             $("chat-box").on("submit", (event) => {
+                const id = crypto.randomUUID();
+                const msg = event.detail.value;
+
+                event.target.pushItem({
+                    id,
+                    name,
+                    msg,
+                    me: true,
+                });
                 socket.send(JSON.stringify({
                     changes: {
                         msg: {
-                            txt: event.detail.value,
-                            id: crypto.randomUUID(),
+                            txt: msg,
+                            id,
                         },
                     },
                 }));
