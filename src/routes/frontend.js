@@ -9,6 +9,7 @@ const routeToFileMap = new Map([
     ["/welcome", "frontend/welcome.html"],
     ["/create", "frontend/create.html"],
     ["/playground", "frontend/room.html"],
+    ["/confirm", "frontend/confirm.html"],
     ["/assets/og.png", "assets/og.png"],
     ["/constants/card.js", "constants/card.js"],
     ["/constants/error.js", "constants/error.js"],
@@ -46,7 +47,21 @@ const handleServeFile = async (kv, url, requestHeaders) => {
         const headers = new Headers();
         headers.append("Content-Type", contentType);
 
-        if (pathname === "/playground" && searchParams.has("id")) {
+        if (pathname === "/confirm") {
+            const {
+                "room_token": roomToken,
+                "user_token": userToken,
+            } = getCookies(requestHeaders);
+
+            if (!roomToken || !userToken) {
+                return new Response(null, {
+                    headers: {
+                        "Location": "/welcome",
+                    },
+                    status: 307,
+                });
+            }
+        } else if (pathname === "/playground" && searchParams.has("id")) {
             const {
                 "room_token": roomToken,
                 "user_token": userToken,
@@ -68,12 +83,42 @@ const handleServeFile = async (kv, url, requestHeaders) => {
                 }
             }
 
-            // Should we let user choose?
-            deleteCookie(headers, "room_token");
-            deleteCookie(headers, "user_token");
+            const forceJoin = searchParams.get("fj");
+
+            if (forceJoin) {
+                deleteCookie(headers, "room_token");
+                deleteCookie(headers, "user_token");
+            } else if (roomToken && userToken) {
+                return new Response(undefined, {
+                    headers: {
+                        "Location": `/confirm?nr=${
+                            encodeURIComponent(searchParams.get("id"))
+                        }`,
+                    },
+                    status: 307,
+                });
+            }
         } else if (pathname === "/create") {
-            deleteCookie(headers, "room_token");
-            deleteCookie(headers, "user_token");
+            const forceJoin = searchParams.get("fj");
+
+            if (forceJoin) {
+                deleteCookie(headers, "room_token");
+                deleteCookie(headers, "user_token");
+            } else {
+                const {
+                    "room_token": roomToken,
+                    "user_token": userToken,
+                } = getCookies(requestHeaders);
+
+                if (roomToken && userToken) {
+                    return new Response(undefined, {
+                        headers: {
+                            "Location": "/confirm",
+                        },
+                        status: 307,
+                    });
+                }
+            }
         }
 
         if (rewritePaths.has(file)) {
