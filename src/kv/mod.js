@@ -13,6 +13,7 @@ const FIRST_USER_KEY = "firstUser";
 
 const EXPIRE_MS = 3 * 60 * 60 * 1000;
 const MAX_USERS_COUNT = 100;
+const MAX_QUEUE_ITEM_COUNT = 10000;
 
 const createRoom = async (kv, roomName, cards) => {
     const roomToken = await generateToken();
@@ -349,9 +350,18 @@ const evictUser = async (kv, roomToken, firstUserToken, userId) => {
 const pushItem = async (kv, key, item) => {
     const res = await kv.get([key]);
     let transaction;
+    let count = 0;
 
     do {
-        const { value } = res;
+        let { value } = res;
+
+        count++;
+
+        if (value && value.length >= MAX_QUEUE_ITEM_COUNT) {
+            // Note: This can cause items to be lost.
+            // For now, it's not a big issue if the max count is large.
+            value = value.slice(-MAX_QUEUE_ITEM_COUNT);
+        }
 
         transaction = await kv.atomic()
             .check(res)
@@ -363,10 +373,31 @@ const pushItem = async (kv, key, item) => {
 };
 
 const getLatest = async function* (kv, key) {
+    let lastId = null;
+
     for await (const _change of kv.watch([[key]])) {
         const { value } = await kv.get([key]);
 
-        yield value?.at(-1) ?? null;
+        if (!value) {
+            continue;
+        }
+
+        const newItems = [];
+
+        for (let i = value.length - 1; i >= 0; i--) {
+            const item = value[i];
+
+            if (item?.payload?.id !== lastId) {
+                newItems.push(item);
+            } else {
+                break;
+            }
+        }
+
+        const newest = newItems[0];
+
+        lastId = newest?.payload?.id ?? null;
+        yield newItems;
     }
 };
 

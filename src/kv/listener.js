@@ -36,21 +36,23 @@ class ListenerStore {
     }
 
     async startListening() {
-        for await (const value of getLatest(this.#kv, "temp-queue")) {
-            if (!value) {
+        for await (const values of getLatest(this.#kv, "temp-queue")) {
+            if (values.length === 0) {
                 continue;
             }
 
-            const { type, key, payload } = value;
-            const mapKey = ListenerStore.#getMapKey(type, key);
-            const callbacks = this.#listenerMap.get(mapKey);
+            for (const value of values) {
+                const { type, key, payload } = value;
+                const mapKey = ListenerStore.#getMapKey(type, key);
+                const callbacks = this.#listenerMap.get(mapKey);
 
-            if (callbacks) {
-                for (const callback of callbacks) {
-                    try {
-                        callback(payload);
-                    } catch {
-                        // pass
+                if (callbacks) {
+                    for (const callback of callbacks) {
+                        try {
+                            callback(payload);
+                        } catch {
+                            // pass
+                        }
                     }
                 }
             }
