@@ -66,10 +66,11 @@ const handleServeFile = async (kv, url, requestHeaders) => {
                         status: 303,
                     });
                 }
-
-                deleteCookie(headers, "room_token");
-                deleteCookie(headers, "user_token");
             }
+
+            // Should we let user choose?
+            deleteCookie(headers, "room_token");
+            deleteCookie(headers, "user_token");
         } else if (pathname === "/create") {
             deleteCookie(headers, "room_token");
             deleteCookie(headers, "user_token");
