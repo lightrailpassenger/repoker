@@ -219,57 +219,80 @@
 
                 return table.append(body);
             };
-            const socket = new WebSocket(
-                `${
-                    protocol.replace("http", "ws")
-                }//${host}/conn`,
-            );
-            socket.onmessage = (event) => {
-                const { data } = event;
-
-                if (data === "not_found" || data === "error") {
-                    window.location = "/welcome";
-                }
-
-                const { init, evicted, ...other } = JSON.parse(
-                    data,
+            const createSocket = () => {
+                const socket = new WebSocket(
+                    `${
+                        protocol.replace("http", "ws")
+                    }//${host}/conn`,
                 );
+                socket.onmessage = (event) => {
+                    const { data } = event;
 
-                if (init) {
-                    const { cards, name, vote, shown } =
-                        other.room;
-                    ({ isFirst, userId } = other.room);
-                    $("h1").text(name);
-                    for (const card of cards) {
-                        const button = $("<button/>").attr(
-                            "class",
-                            "btn btn-outline-warning w-auto ms-1 me-1",
-                        )
-                            .text(card)
-                            .on("click", () => {
-                                socket.send(
-                                    JSON.stringify({
-                                        changes: { vote: card },
-                                    }),
-                                );
-                            });
-                        $("#cards").append(button);
+                    if (
+                        data === "not_found" || data === "error"
+                    ) {
+                        window.location = "/welcome";
                     }
-                    $("#state > table").replaceWith(
-                        createState(vote, shown),
-                    );
-                } else if (evicted) {
-                    window.location = "/logout";
-                } else if (other.message) {
-                    const { message } = other;
-                    $("chat-box")[0].pushItem(message);
-                } else if (other.roomState) {
-                    const { vote, shown } = other.roomState;
-                    $("#state > table").replaceWith(
-                        createState(vote, shown),
-                    );
-                }
+
+                    const { init, evicted, ...other } = JSON
+                        .parse(
+                            data,
+                        );
+
+                    if (init) {
+                        const { cards, name, vote, shown } =
+                            other.room;
+                        ({ isFirst, userId } = other.room);
+                        $("h1").text(name);
+                        for (const card of cards) {
+                            const button = $("<button/>").attr(
+                                "class",
+                                "btn btn-outline-warning w-auto ms-1 me-1",
+                            )
+                                .text(card)
+                                .on("click", () => {
+                                    socket.send(
+                                        JSON.stringify({
+                                            changes: {
+                                                vote: card,
+                                            },
+                                        }),
+                                    );
+                                });
+                            $("#cards").append(button);
+                        }
+                        $("#state > table").replaceWith(
+                            createState(vote, shown),
+                        );
+                    } else if (evicted) {
+                        window.location = "/logout";
+                    } else if (other.message) {
+                        const { message } = other;
+                        $("chat-box")[0].pushItem(message);
+                    } else if (other.roomState) {
+                        const { vote, shown } = other.roomState;
+                        $("#state > table").replaceWith(
+                            createState(vote, shown),
+                        );
+                    }
+                };
+
+                return socket;
             };
+            let socket = createSocket();
+
+            document.addEventListener(
+                "visibilitychange",
+                () => {
+                    if (
+                        document.visibilityState ===
+                            "visible" && socket.readyState === 3
+                    ) {
+                        socket = createSocket();
+                    }
+                },
+            );
+
             $("#flip").on("click", () => {
                 socket.send(
                     JSON.stringify({ changes: { flip: true } }),
