@@ -1,7 +1,7 @@
 import { deleteCookie, getCookies } from "cookies";
 import { extname } from "path";
 
-import { getUserMapping } from "../kv/mod.js";
+import { getRoomInfo, getUserMapping } from "../kv/mod.js";
 import { createJSONResponse } from "../utils/createResponse.js";
 import rewriteHTML from "../utils/rewriteHTML.js";
 
@@ -68,17 +68,34 @@ const handleServeFile = async (kv, url, requestHeaders) => {
             } = getCookies(requestHeaders);
 
             if (searchParams.get("id") === roomToken) {
-                const userMapping = await getUserMapping(kv, roomToken);
+                const roomInfo = await getRoomInfo(kv, roomToken);
 
-                if (
-                    userToken &&
-                    Object.prototype.hasOwnProperty.call(userMapping, userToken)
-                ) {
+                if (roomInfo) {
+                    const userMapping = await getUserMapping(kv, roomToken);
+
+                    if (
+                        userToken &&
+                        userMapping &&
+                        Object.prototype.hasOwnProperty.call(
+                            userMapping,
+                            userToken,
+                        )
+                    ) {
+                        return new Response(undefined, {
+                            headers: {
+                                "Location": "/playground",
+                            },
+                            status: 303,
+                        });
+                    }
+                } else {
+                    deleteCookie(headers, "room_token");
+                    deleteCookie(headers, "user_token");
+                    headers.append("Location", "/welcome");
+
                     return new Response(undefined, {
-                        headers: {
-                            "Location": "/playground",
-                        },
-                        status: 303,
+                        headers,
+                        status: 307,
                     });
                 }
             }
@@ -111,12 +128,19 @@ const handleServeFile = async (kv, url, requestHeaders) => {
                 } = getCookies(requestHeaders);
 
                 if (roomToken && userToken) {
-                    return new Response(undefined, {
-                        headers: {
-                            "Location": "/confirm",
-                        },
-                        status: 307,
-                    });
+                    const roomInfo = await getRoomInfo(kv, roomToken);
+
+                    if (roomInfo) {
+                        return new Response(undefined, {
+                            headers: {
+                                "Location": "/confirm",
+                            },
+                            status: 307,
+                        });
+                    } else {
+                        deleteCookie(headers, "room_token");
+                        deleteCookie(headers, "user_token");
+                    }
                 }
             }
         }
