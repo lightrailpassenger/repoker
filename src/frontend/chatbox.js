@@ -101,11 +101,16 @@ class Chatbox extends HTMLElement {
                 }
             }
 
+            li {
+                z-index: 1;
+            }
+
             li.row.me {
                 text-align: right;
             }
 
             li.row {
+                position: relative;
                 margin: 2px 0;
                 width: 100%;
 
@@ -129,18 +134,61 @@ class Chatbox extends HTMLElement {
                     font-size: 9px;
                 }
 
-                .me.loading, .other.loading {
+                .me.loading, .other.loading, .me.loading:after, .other.loading:before {
                     background-color: white;
-                    border: 1px solid black;
+                    outline: 1px solid black;
+                }
+
+                .other:before {
+                    position: absolute;
+                    width: 24px;
+                    height: 24px;
+                    left: 0;
+                    top: 50%;
+                    transform: translate(-3px, -50%) rotate(45deg);
+                    content: '';
+                    z-index: -1;
+                    background-color: grey;
+                    transition: background-color 0.3s ease-in;
+                    border-radius: 3px;
                 }
 
                 .other {
                     background-color: grey;
+                    margin-left: 6px;
+                    position: relative;
                 }
 
                 .me {
                     background-color: rgb(91, 191, 245);
+                    margin-right: 6px;
+                    position: relative;
                     text-align: right;
+                }
+
+                .me.loading:before {
+                    position: absolute;
+                    width: 1px;
+                    background: white;
+                    height: 15px;
+                    right: -1px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    content: '';
+                }
+
+                .me:after {
+                    position: absolute;
+                    width: 24px;
+                    height: 24px;
+                    right: 0;
+                    top: 50%;
+                    transform: translate(3px, -50%) rotate(45deg);
+                    content: '';
+                    z-index: -1;
+                    background-color: rgb(91, 191, 245);
+                    transition: background-color 0.3s ease-in;
+                    border-radius: 3px;
                 }
             }
 
