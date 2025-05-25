@@ -1,13 +1,15 @@
 {
-  "version": "3",
-  "packages": {
-    "specifiers": {
-      "jsr:@std/path": "jsr:@std/path@1.0.1"
+  "version": "4",
+  "specifiers": {
+    "jsr:@std/http@*": "1.0.16",
+    "jsr:@std/path@*": "1.0.1"
+  },
+  "jsr": {
+    "@std/http@1.0.16": {
+      "integrity": "80c8d08c4bfcf615b89978dcefb84f7e880087cf3b6b901703936f3592a06933"
     },
-    "jsr": {
-      "@std/path@1.0.1": {
-        "integrity": "e061ff02c28481ca49e3a14981875c345e9fc7e973190672782cd0ac8af70428"
-      }
+    "@std/path@1.0.1": {
+      "integrity": "e061ff02c28481ca49e3a14981875c345e9fc7e973190672782cd0ac8af70428"
     }
   },
   "remote": {
@@ -17,7 +19,8 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@std/path"
+      "jsr:@std/http@*",
+      "jsr:@std/path@*"
     ]
   }
 }
